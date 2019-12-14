@@ -1,5 +1,5 @@
 import os
-
+import numpy as np
 
 
 class Navigator:
