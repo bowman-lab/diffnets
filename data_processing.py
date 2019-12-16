@@ -1,9 +1,11 @@
 import os
 import multiprocessing as mp
 import functools
+import glob
 
 import numpy as np
 import mdtraj as md
+from scipy.linalg import inv, sqrtm
 
 #Move to its own file "nnutils.py"
 class Navigator:
