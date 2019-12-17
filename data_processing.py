@@ -23,7 +23,8 @@ class Navigator:
         self.var_dir_names = var_dir_names
         self.var_pdb_fns = var_pdb_fns
         self.xtc_dir = os.path.join(self.whit_data_dir, "aligned_xtcs")
-        self.label_dir = os.path.join(self.whit_data_dir, "labels")
+        #indicators to indicate what variant a traj came from
+        self.indicator_dir = os.path.join(self.whit_data_dir, "indicators")
 
     def make_dir(dir_name):
         if not os.path.exists(dir_name)
@@ -116,11 +117,11 @@ class ProcessTraj:
         new_cm_fn = os.path.join(xtc_dir, "cm" + str(traj_num).zfill(6) + ".npy")
         np.save(new_cm_fn, cm)
         
-        labels = var_ind * np.ones(n)
-        label_fn = os.path.join(self.myNav.label_dir, str(traj_num).zfill(6) + ".npy")
-        np.save(label_fn, labels)
+        indicators = var_ind * np.ones(n)
+        indicators_fn = os.path.join(self.myNav.indicator_dir, str(traj_num).zfill(6) + ".npy")
+        np.save(indicators_fn, indicators)
 
-    def preprocess_traj(inputs,xtc_dir,label_dir):
+    def preprocess_traj(inputs,xtc_dir,indicator_dir):
         n_cores = mp.cpu_count()
         pool = mp.Pool(processes=n_cores)
         f = functools.partial(_preprocess_traj)
@@ -148,8 +149,8 @@ class ProcessTraj:
         inputs = self.make_traj_list()
         xtc_dir = os.path.join(self.myNav.whit_data_dir,"aligned_xtcs")
         self.myNav.make_dir(xtc_dir)
-        label_dir = os.path.join(self.myNav.whit_data_dir,"labels")
-        self.myNav.make_dir(label_dir)
+        indicator_dir = os.path.join(self.myNav.whit_data_dir,"indicators")
+        self.myNav.make_dir(indicator_dir)
         self.preprocess_traj(inputs)
         
 class WhitenTraj: 
