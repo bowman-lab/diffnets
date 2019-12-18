@@ -92,11 +92,33 @@ class Trainer:
             wm1 = wm[inds1[:,None],inds1]
             wm2 = wm[inds2[:,None],inds2]
         uwm = np.load(uwm_fn)
-        uwm = uwm
         cm = np.load(cm_fn).flatten()
         # remove cm ahead of time
         data -= cm
 
+        train_inds, test_inds = self.split_test_train()
+        n_train = train_inds.shape[0]
+        n_test = test_inds.shape[0]
+        out_fn = os.path.join(outdir, "train_inds.npy")
+        np.save(out_fn, train_inds)
+        out_fn = os.path.join(outdir, "test_inds.npy")
+        np.save(out_fn, test_inds)
+        print("    n train/test", n_train, n_test)
+
+        old_net = nntype(layer_sizes[0:2],inds,wm,uwm)
+        old_net.freeze_weights()
+
+        for cur_layer in range(2,len(layer_sizes)):
+            net = nntype(layer_sizes[0:cur_layer+1],inds)
+            net.freeze_weights(old_net)
+            net.cuda()
+            net, targets = train(data, targets, labels, train_inds, test_inds, net, str(cur_layer), job)
+            old_net = net
+
+        #Polishing
+        net.unfreeze_weights()
+        net.cuda()
+        net, targets = train(data, targets, labels, train_inds, test_inds, net, "polish", job, lr_fact=0.1)
 
 
 

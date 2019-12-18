@@ -76,7 +76,6 @@ class CNN(nn.Module):
         return torch.sigmoid(x)
 
 class split_ae(nn.Module):
-    #Can maybe do all this as a subclass of ae   
     def __init__(self,layer_sizes,inds1,inds2):
         super(split_ae, self).__init__()
         self.sizes = layer_sizes
@@ -105,6 +104,9 @@ class split_ae(nn.Module):
             else:
                 self.decoder.append(nn.Linear(self.sizes[i], self.sizes[i-1]))
             j+=1
+
+    def freeze_weights(self):
+        pass
 
     def encode(self,x):
         #latent = encoder[0](x)
