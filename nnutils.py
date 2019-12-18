@@ -76,12 +76,16 @@ class CNN(nn.Module):
         return torch.sigmoid(x)
 
 class split_ae(nn.Module):
-    def __init__(self,layer_sizes,inds1,inds2):
+    def __init__(self,layer_sizes,inds,wm=None,uwm=None):
         super(split_ae, self).__init__()
         self.sizes = layer_sizes
         self.n = len(self.sizes)
         self.inds1 = inds1
         self.inds2 = inds2
+        self.n_features = len(self.inds1)+len(self.inds2)
+        self.wm1 = wm[inds1[:,None],inds1]
+        self.wm2 = wm[inds2[:,None],inds2]
+        self.uwm = uwm
         self.ratio = len(inds1)/(len(inds1)+len(inds2))
 
         self.encoder1 = nn.ModuleList()
@@ -89,24 +93,46 @@ class split_ae(nn.Module):
         self.encoder1.append(nn.Linear(len(inds1),len(inds1)))
         self.encoder2.append(nn.Linear(len(inds2),len(inds2)))
         for i in range(1,self.n-1):
-            if i == 2: ## Added this for manual control
-                self.encoder1.append(nn.Linear(int(np.round(self.sizes[i]*self.ratio)), 3))
-                self.encoder2.append(nn.Linear(int(np.round(self.sizes[i] * (1-self.ratio))), 22)) 
-            else:
-                self.encoder1.append(nn.Linear(int(np.round(self.sizes[i]*self.ratio)), int(np.round(self.sizes[i+1]*self.ratio))))
-                self.encoder2.append(nn.Linear(int(np.round(self.sizes[i] * (1-self.ratio))), int(np.round(self.sizes[i+1] * (1-self.ratio)))))
+            self.encoder1.append(nn.Linear(int(np.round(self.sizes[i]*self.ratio)), int(np.round(self.sizes[i+1]*self.ratio))))
+            self.encoder2.append(nn.Linear(int(np.round(self.sizes[i] * (1-self.ratio))), int(np.round(self.sizes[i+1] * (1-self.ratio)))))
 
         self.decoder = nn.ModuleList()
-        j = 0 ### ADDED THIS FOR MANUAL
         for i in range(self.n-1,0,-1):
-            if self.n == 4 and j ==0:
-                self.decoder.append(nn.Linear(25, self.sizes[i-1]))
-            else:
-                self.decoder.append(nn.Linear(self.sizes[i], self.sizes[i-1]))
-            j+=1
+            self.decoder.append(nn.Linear(self.sizes[i], self.sizes[i-1]))
 
-    def freeze_weights(self):
-        pass
+    def freeze_weights(self,old_net=None):
+        self.encoder1[0].weight.data = Variable(torch.from_numpy(self.wm1).type(torch.FloatTensor))
+        self.encoder1[0].bias.data = Variable(torch.from_numpy(np.zeros(len(self.inds1))).type(torch.FloatTensor))
+        self.encoder2[0].weight.data = Variable(torch.from_numpy(self.wm2).type(torch.FloatTensor))
+        self.encoder2[0].bias.data = Variable(torch.from_numpy(np.zeros(len(self.inds2))).type(torch.FloatTensor))
+        for p in self.encoder1[0].parameters():
+            p.requires_grad = False
+        for p in self.encoder2[0].parameters():
+            p.requires_grad = False
+        self.decoder[-1].weight.data = Variable(torch.from_numpy(self.uwm).type(torch.FloatTensor))
+        self.decoder[-1].bias.data = Variable(torch.from_numpy(np.zeros(self.n_features)).type(torch.FloatTensor))
+        for p in self.decoder[-1].parameters():
+            p.requires_grad = False
+        
+        if old_net:
+            n_old = len(old_net.encoder1)
+            for i in range(1,n_old):
+                net.encoder1[i].weight.data = old_net.encoder1[i].weight.data
+                net.encoder1[i].bias.data = old_net.encoder1[i].bias.data
+                for p in net.encoder1[i].parameters():
+                    p.requires_grad = False
+                net.encoder2[i].weight.data = old_net.encoder2[i].weight.data
+                net.encoder2[i].bias.data = old_net.encoder2[i].bias.data
+                for p in net.encoder2[i].parameters():
+                    p.requires_grad = False
+
+    def unfreeze_weights(self):
+        n_old = len(self.encoder1)
+        for i in range(1,n_old):
+           for p in self.encoder1[i].parameters():
+               p.requires_grad = True
+           for p in self.encoder2[i].parameters():
+               p.requires_grad = True
 
     def encode(self,x):
         #latent = encoder[0](x)
@@ -175,6 +201,30 @@ class ae(nn.Module):
         self.decoder = nn.ModuleList()
         for i in range(self.n-1, 0, -1):
             self.decoder.append(nn.Linear(self.sizes[i], self.sizes[i-1]))
+
+    def freeze_weights(self,old_net=None):
+        self.encoder[0].weight.data = Variable(torch.from_numpy(self.wm1).type(torch.FloatTensor))
+        self.encoder[0].bias.data = Variable(torch.from_numpy(np.zeros(len(self.inds1))).type(torch.FloatTensor))
+        for p in self.encoder1[0].parameters():
+            p.requires_grad = False
+        self.decoder[-1].weight.data = Variable(torch.from_numpy(self.uwm).type(torch.FloatTensor))
+        self.decoder[-1].bias.data = Variable(torch.from_numpy(np.zeros(self.n_features)).type(torch.FloatTensor))
+        for p in self.decoder[-1].parameters():
+            p.requires_grad = False
+
+        if old_net:
+            n_old = len(old_net.encoder)
+            for i in range(1,n_old):
+                net.encoder[i].weight.data = old_net.encoder1[i].weight.data
+                net.encoder[i].bias.data = old_net.encoder1[i].bias.data
+                for p in net.encoder[i].parameters():
+                    p.requires_grad = False
+
+    def unfreeze_weights(self):
+        n_old = len(self.encoder)
+        for i in range(1,n_old):
+           for p in self.encoder[i].parameters():
+               p.requires_grad = True
 
     def encode(self, x):
         # whiten, without applying non-linearity
