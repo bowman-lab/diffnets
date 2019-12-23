@@ -5,6 +5,7 @@ import mdtraj as md
 import multiprocessing as mp
 import numpy as np
 import os
+import itertools
 import pickle
 import torch
 import torch.nn as nn
@@ -80,8 +81,7 @@ class split_ae(nn.Module):
         super(split_ae, self).__init__()
         self.sizes = layer_sizes
         self.n = len(self.sizes)
-        self.inds1 = inds[0]
-        self.inds2 = inds[1]
+        self.inds1, self.inds2 = self.split_inds()
         self.n_features = len(self.inds1)+len(self.inds2)
         self.wm1 = wm[self.inds1[:,None],self.inds1]
         self.wm2 = wm[self.inds2[:,None],self.inds2]
@@ -100,13 +100,28 @@ class split_ae(nn.Module):
         for i in range(self.n-1,0,-1):
             self.decoder.append(nn.Linear(self.sizes[i], self.sizes[i-1]))
 
-    def split_inds(self,):
+    def split_inds(self):
+        start_ind = list(self.pdb.topology.residues)[0].resSeq
+        mdtraj_ind = self.res - start_ind
+        res_atoms = pdb.topology.select("resid %s" % mdtraj_ind)
+        dist_combos = [res_atoms,np.arange(pdb.n_atoms)]
+        dist_combos = np.array(list(itertools.product(*dist_combos)))
+
+        dpdb = md.compute_distances(pdb,dist_combos)
+        ind1_loc = np.where(dpdb.flatten()<self.focusDist)[0]
+        inds1 = np.unique(dist_combos[ind1_loc].flatten())
+        inds2 = np.setdiff1d(np.arange(self.pdb.n_atoms),inds1)
+        return inds1, inds2
 
     def freeze_weights(self,old_net=None):
-        self.encoder1[0].weight.data = Variable(torch.from_numpy(self.wm1).type(torch.FloatTensor))
-        self.encoder1[0].bias.data = Variable(torch.from_numpy(np.zeros(len(self.inds1))).type(torch.FloatTensor))
-        self.encoder2[0].weight.data = Variable(torch.from_numpy(self.wm2).type(torch.FloatTensor))
-        self.encoder2[0].bias.data = Variable(torch.from_numpy(np.zeros(len(self.inds2))).type(torch.FloatTensor))
+        vwm = Variable(torch.from_numpy(self.wm1).type(torch.FloatTensor))
+        self.encoder1[0].weight.data = vwm
+        vz = Variable(torch.from_numpy(np.zeros(len(self.inds1))).type(torch.FloatTensor))
+        self.encoder1[0].bias.data = vz
+        vwm2 = Variable(torch.from_numpy(self.wm2).type(torch.FloatTensor))
+        self.encoder2[0].weight.data = vwm2
+        vz2 = Variable(torch.from_numpy(np.zeros(len(self.inds2))).type(torch.FloatTensor))
+        self.encoder2[0].bias.data = vz2
         for p in self.encoder1[0].parameters():
             p.requires_grad = False
         for p in self.encoder2[0].parameters():
