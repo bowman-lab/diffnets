@@ -145,9 +145,6 @@ class Trainer:
         targets[:, 0] = act_map[indicators]
         return targets
 
-    def get_inds(self):
-        pass
-
     def split_test_train(self,frac_test):
         pass
     
@@ -187,7 +184,8 @@ class Trainer:
         wm = np.load(wm_fn)
         uwm = np.load(uwm_fn)
         cm = np.load(cm_fn).flatten()
-        inds = self.get_inds()
+        #handle this through split_ae class instead
+        #inds = self.get_inds()
 
         data -= cm
 
@@ -200,11 +198,17 @@ class Trainer:
         np.save(out_fn, test_inds)
         print("    n train/test", n_train, n_test)
 
-        old_net = nntype(layer_sizes[0:2],inds,wm,uwm)
+        if hasattr(nntype, 'split_inds'):
+            old_net = nntype(layer_sizes[0:2],inds,wm,uwm,master,job.focusDist)
+        else:
+            old_net = nntype(layer_sizes[0:2],inds,wm,uwm)
         old_net.freeze_weights()
 
         for cur_layer in range(2,len(layer_sizes)):
-            net = nntype(layer_sizes[0:cur_layer+1],inds)
+            if hasattr(nntype, 'split_inds'):
+                old_net = nntype(layer_sizes[0:2],inds,wm,uwm,master,job.focusDist)
+            else:
+                old_net = nntype(layer_sizes[0:2],inds,wm,uwm)
             net.freeze_weights(old_net)
             net.cuda()
             net, targets = self.train(data, targets, indicators, train_inds, test_inds, net, str(cur_layer), job)

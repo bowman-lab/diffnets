@@ -16,11 +16,15 @@ class Navigator:
                        net_dir,
                        var_dir_names,
                        var_pdb_fns):
-
+        #Data dir where trajectories are - strict structure required
         self.orig_data_dir = orig_data_dir
+        #new data dir for all whitened and processed data
         self.whit_data_dir = whit_data_dir
+        #output of the neural net training goes in net_dir
         self.net_dir = net_dir
+        #The name of the different variant dirs in original data dir
         self.var_dir_names = var_dir_names
+        #Each variants pdb filename
         self.var_pdb_fns = var_pdb_fns
         self.xtc_dir = os.path.join(self.whit_data_dir, "aligned_xtcs")
         #indicators to indicate what variant a traj came from
