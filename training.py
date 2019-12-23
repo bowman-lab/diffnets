@@ -221,7 +221,18 @@ class Trainer:
 
 
 class CanonTrainer(Trainer):
-    pass
+    
+    def __init__():
+        pass
 
+    def evaluate_test(self):
 
+    def get_targets(self,act_map,indicators):
+        #Currently a bad implementation because it doesn't use the params
+        targ_dir = os.path.join(self.myNav.whit_data_dir, "custom_labels")
+        targets = myNav.load_npy_dir(targ_dir)
+        return targets
+
+    def split_test_train(self):
+        pass
 
