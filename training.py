@@ -169,6 +169,7 @@ class Trainer:
 
         xtc_dir = os.path.join(data_dir, "aligned_xtcs")        
 
+        #Could handle memory better here 
         data = self.myNav.load_traj_coords_dir(xtc_dir, "*.xtc", master.top)
         n_snapshots = len(data)
         print("    size loaded data", data.shape)
