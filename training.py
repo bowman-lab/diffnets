@@ -207,9 +207,9 @@ class Trainer:
 
         for cur_layer in range(2,len(layer_sizes)):
             if hasattr(nntype, 'split_inds'):
-                old_net = nntype(layer_sizes[0:2],inds,wm,uwm,master,job.focusDist)
+                net = nntype(layer_sizes[0:2],inds,wm,uwm,master,job.focusDist)
             else:
-                old_net = nntype(layer_sizes[0:2],inds,wm,uwm)
+                net = nntype(layer_sizes[0:2],inds,wm,uwm)
             net.freeze_weights(old_net)
             net.cuda()
             net, targets = self.train(data, targets, indicators, train_inds, test_inds, net, str(cur_layer), job)

@@ -87,12 +87,26 @@ class split_ae(nn.Module):
         self.wm2 = wm[self.inds2[:,None],self.inds2]
         self.uwm = uwm
         self.ratio = len(inds1)/(len(inds1)+len(inds2))
+        self.res = res #res number
+        self.focusDist = focusDist
+        self.pdb = pdb
 
         self.encoder1 = nn.ModuleList()
         self.encoder2 = nn.ModuleList()
         self.encoder1.append(nn.Linear(len(inds1),len(inds1)))
         self.encoder2.append(nn.Linear(len(inds2),len(inds2)))
         for i in range(1,self.n-1):
+            small_layer_in = int(np.round(self.sizes[i]*self.ratio))
+            small_layer_out = int(np.round(self.sizes[i+1]*self.ratio))
+            big_layer_in = int(np.round(self.sizes[i] * (1-self.ratio)))
+            big_layer_out = int(np.round(self.sizes[i+1] * (1-self.ratio)))
+            if small_layer_in < 3:
+                small_layer_in = 3
+                big_layer_in = self.sizes[i]-3
+            if small_layer_out < 3:
+                small_layer_out = 3
+                big_layer_out = self.sizes[i]-3
+
             self.encoder1.append(nn.Linear(int(np.round(self.sizes[i]*self.ratio)), int(np.round(self.sizes[i+1]*self.ratio))))
             self.encoder2.append(nn.Linear(int(np.round(self.sizes[i] * (1-self.ratio))), int(np.round(self.sizes[i+1] * (1-self.ratio)))))
 
