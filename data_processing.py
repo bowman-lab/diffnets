@@ -66,14 +66,15 @@ class ProcessTraj:
 
     def __init__(self,
                  myNav,
-                 atom_sel="name CA or name CB or name N or name C"):
+                 atom_sel="name CA or name CB or name N or name C",
+                 stride=1):
                  #gly_mut_ind = []):
         self.myNav = myNav
         #Should also give option to give list of inds for each variant
         self.atom_sel = atom_sel
         self.master = self.make_master_pdb()
         self.n_feats = 3*self.master.top.n_atoms
-    
+        self.stride = stride
 
     def make_master_pdb(self):
         ## TODO: Add in a check that all pdbs have same number of atoms
@@ -111,7 +112,7 @@ class ProcessTraj:
         else:
             print("on traj", traj_num)
 
-        traj = md.load(traj_fn, top=top_fn)
+        traj = md.load(traj_fn, top=top_fn, stride=self.stride)
 
         if traj_num is 0:
             print("Selecting inds")
@@ -186,23 +187,23 @@ class WhitenTraj:
         self.myNav= myNav
         self.cm = np.load(os.path.join(self.myNav.whit_data_dir,"cm.npy"))
 
-    def get_c00(self, coords, cm):
+    def get_c00(self, coords, cm, traj_num):
         coords -= cm
-        n_coords = coords.shape[0]
-        norm_const = 1.0 / n_coords
+        #n_coords = coords.shape[0]
+        #norm_const = 1.0 / n_coords
         #c00 = np.einsum('bi,bo->io', coords, coords)
         #matmul is faster
         c00 = np.matmul(coords.transpose(),coords)
-        c00 *= norm_const
-        return c00
+        np.save(os.path.join(self.myNav.xtc_dir, "cov"+traj_num+".npy"),c00)
 
     def _get_c00_xtc(self, xtc_fn, top, cm):
         traj = md.load(xtc_fn, top=top)
-
+        traj_num = xtc_fn.split("/")[-1].split(".")[0]
         n = len(traj)
         n_atoms = traj.top.n_atoms
         coords = traj.xyz.reshape((n, 3 * n_atoms))
-        return self.get_c00(coords, cm), len(traj)
+        self.get_c00(coords,cm,traj_num)
+        return n
 
     def get_c00_xtc_list(self, xtc_fns, top, cm, n_cores):
         pool = mp.Pool(processes=n_cores)
@@ -210,17 +211,11 @@ class WhitenTraj:
         result = pool.map_async(f, xtc_fns)
         result.wait()
         r = result.get()
-        pool.close()
+        pool.close()        
 
-        n = len(r)
-        c00s = np.zeros((n, r[0][0].shape[0], r[0][0].shape[1]))
-        lens = np.zeros(n)
-        #Memory issue - r is N c00s where N is # trajs
-        for i in range(n):
-            c00s[i] = r[i][0]
-            lens[i] = r[i][1]
-        c00 = np.einsum('ijk,i->jk', c00s, lens)
-        c00 /= lens.sum()
+        c00_fns = np.sort(glob.glob(os.path.join(self.myNav.xtc_dir, "cov*.npy")))
+        c00 = sum(np.load(c00_fn) for c00_fn in c00_fns)
+        c00 /= sum(r)
         return c00
 
     def get_wuw_mats(self, c00):
