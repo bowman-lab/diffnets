@@ -70,7 +70,6 @@ class ProcessTraj:
                  stride=1):
                  #gly_mut_ind = []):
         self.myNav = myNav
-        #Should also give option to give list of inds for each variant
         self.atom_sel = atom_sel
         self.master = self.make_master_pdb()
         self.n_feats = 3*self.master.top.n_atoms
@@ -80,7 +79,10 @@ class ProcessTraj:
         ## TODO: Add in a check that all pdbs have same number of atoms
         pdb_fn = self.myNav.og_pdb_fn_paths[0]
         master = md.load(pdb_fn)
-        inds = master.top.select(self.atom_sel)
+        if isinstance(self.atom_sel, list) or type(self.atom_sel)==np.ndarray:
+             inds = self.atom_sel[var_ind]
+        else:
+             inds = traj.top.select(self.atom_sel)
         master = master.atom_slice(inds)
         master.center_coordinates()
         master_fn = os.path.join(self.myNav.whit_data_dir, "master.pdb")
@@ -116,7 +118,11 @@ class ProcessTraj:
 
         if traj_num is 0:
             print("Selecting inds")
-        inds = traj.top.select(self.atom_sel)
+
+        if isinstance(self.atom_sel, list) or type(self.atom_sel)==np.ndarray:
+             inds = self.atom_sel[var_ind]
+        else:
+             inds = traj.top.select(self.atom_sel)
 
         #Check for glycine mutations
         #if traj.top.residue(238-26).name == "SER":
@@ -263,16 +269,18 @@ class WhitenTraj:
         n_cores = mp.cpu_count()
         traj_fns = get_fns(self.myNav.xtc_dir, "*.xtc")
         master = md.load(os.path.join(outdir,"master.pdb"))
-        #May run into memory issues
         c00 = self.get_c00_xtc_list(traj_fns, master.top, self.cm, n_cores)
         c00_fn = os.path.join(outdir,"c00.npy")
         np.save(c00_fn, c00)
+        c00_fns = np.sort(glob.glob(os.path.join(self.myNav.xtc_dir, "cov*.npy"))
+        for fn in c00_fns:
+            os.remove(fn)
         uwm, wm = self.get_wuw_mats(c00)
         uwm_fn = os.path.join(outdir, "uwm.npy")
         np.save(uwm_fn, uwm)
         wm_fn = os.path.join(outdir, "wm.npy")
         np.save(wm_fn, wm)
-        self.apply_whitening_xtc_dir(self.myNav.xtc_dir, master.top, wm, self.cm, n_cores, whitened_dir)
+        #self.apply_whitening_xtc_dir(self.myNav.xtc_dir, master.top, wm, self.cm, n_cores, whitened_dir)
 
 
 

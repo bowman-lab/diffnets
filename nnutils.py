@@ -77,6 +77,7 @@ class CNN(nn.Module):
         return torch.sigmoid(x)
 
 class split_ae(nn.Module):
+    # Move res, focusDist into some other function
     def __init__(self,layer_sizes,wm,uwm,pdb,res,focusDist=1):
         super(split_ae, self).__init__()
         self.sizes = layer_sizes
@@ -125,6 +126,7 @@ class split_ae(nn.Module):
         ind1_loc = np.where(dpdb.flatten()<self.focusDist)[0]
         inds1 = np.unique(dist_combos[ind1_loc].flatten())
         inds2 = np.setdiff1d(np.arange(self.pdb.n_atoms),inds1)
+        #add x,y,z
         return inds1, inds2
 
     def freeze_weights(self,old_net=None):
