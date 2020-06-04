@@ -11,7 +11,7 @@ from torch.autograd import Variable
 class Trainer:
 
     def __init__(self,job,myNav):
-        """Class to train your DiffNet
+        """Object to train your DiffNet
         
         Parameters:
         -----------
@@ -21,15 +21,62 @@ class Trainer:
         self.job = job
         self.myNav = myNav
     
-    def em_parallel():
-        pass
+    def em_parallel(self, net, data, train_inds, em_batch_size,
+                    indicators, em_bounds, em_n_cores):
+        n_em = np.ceil(train_inds.shape[0]*1.0/em_batch_size)
+        freq_output = np.floor(n_em/10.0)
+        inputs = []
+        i = 0
+        for em_batch_inds in nnutils.chunks(train_inds, em_batch_size):
+            em_batch_x = Variable(torch.from_numpy(data[em_batch_inds]).type(torch.cuda.FloatTensor))
+            if hasattr(net, "decode"):
+                if hasattr(net, "reparameterize"):
+                    x_pred, latent, logvar, class_pred = net(em_batch_x)
+                else:
+                    x_pred, latent, class_pred = net(em_batch_x)
+            else:
+                class_pred = net(em_batch_x)
+            cur_labels = class_pred.cpu().detach().numpy()
+            inputs.append([cur_labels, indicators[em_batch_inds], em_bounds])
+            if i % freq_output == 0:
+                print("      %d/%d" % (i, n_em))
+            i += 1
 
-    def apply_exmax():
-        pass
+        pool = mp.Pool(processes=em_n_cores)
+        res = pool.map(apply_exmax, inputs)
+        pool.close()
 
-    def evaluate_test():
-        pass
- 
+        new_labels = -1 * np.ones((indicators.shape[0], 1))
+        new_labels[train_inds] = np.concatenate(res)
+        return new_labels
+
+    def apply_exmax(self, inputs):
+        cur_labels, indicators, em_bounds = inputs
+        n_vars = em_bounds.shape[0]
+
+        for i in range(n_vars):
+            inds = np.where(indicators == i)[0]
+            lower = np.int(np.floor(em_bounds[i, 0] * inds.shape[0]))
+            upper = np.int(np.ceil(em_bounds[i, 1] * inds.shape[0]))
+            cur_labels[inds] = exmax.expectation_range_CUBIC(cur_labels[inds], lower, upper).reshape(cur_labels[inds].shape)
+
+        bad_inds = np.where(np.isnan(cur_labels))
+        cur_labels[bad_inds] = 0
+        try:
+            assert((cur_labels >= 0.).all() and (cur_labels <= 1.).all())
+        except AssertionError:
+            neg_inds = np.where(cur_labels<0)[0]
+            pos_inds = np.where(cur_labels>1)[0]
+            bad_inds = neg_inds.tolist() + pos_inds.tolist()
+            for iis in bad_inds:
+                print("      ", labels[iis], cur_labels[iis])
+            print("      #bad neg, pos", len(neg_inds), len(pos_inds))
+            #np.save("tmp.npy", tmp_labels)
+            cur_labels[neg_inds] = 0.0
+            cur_labels[pos_inds] = 1.0
+            #sys.exit(1)
+        return cur_labels.reshape((cur_labels.shape[0], 1))
+
     def train(self):
         job = self.job
         do_em = job['do_em']
@@ -97,9 +144,7 @@ class Trainer:
                     for test_batch_inds in nnutils.chunks(test_inds, test_batch_size):
                         test_x = Variable(torch.from_numpy(data[test_batch_inds]).type(torch.cuda.FloatTensor))
                         x_pred, latent, class_pred = net(test_x)
-                        loss = self.evaluate_test(test_x,x_pred)
-                        #loss = nnutils.my_mse(test_x, x_pred)
-                        #print("      ", loss.item(), x_pred.shape, test_x.shape)
+                        loss = nnutils.my_mse(test_x,x_pred)
                         test_loss += loss.item() * test_batch_inds.shape[0] # mult for averaging across samples, as in train_loss
                     #print("        ", test_loss)
                     test_loss /= n_test # division averages across samples, as in train_loss
@@ -154,7 +199,7 @@ class Trainer:
         outdir = self.myNav.net_dir
         n_latent = job['n_latent']
         layer_sizes = job['layer_sizes']
-        n_cores = job['n_cores']
+        n_cores = job['n_cores'] #can probably get rid of this
         nntype = job['nntype']
         frac_test = job['frac_test']
         act_map = job['act_map']
@@ -170,7 +215,7 @@ class Trainer:
         xtc_dir = os.path.join(data_dir, "aligned_xtcs")        
 
         #Could handle memory better here 
-        data = self.myNav.load_traj_coords_dir(xtc_dir, "*.xtc", master.top)
+        data = data_processing.load_traj_coords_dir(xtc_dir, "*.xtc", master.top)
         n_snapshots = len(data)
         print("    size loaded data", data.shape)
 
@@ -185,8 +230,6 @@ class Trainer:
         wm = np.load(wm_fn)
         uwm = np.load(uwm_fn)
         cm = np.load(cm_fn).flatten()
-        #handle this through split_ae class instead
-        #inds = self.get_inds()
 
         data -= cm
 
@@ -202,14 +245,14 @@ class Trainer:
         if hasattr(nntype, 'split_inds'):
             old_net = nntype(layer_sizes[0:2],inds,wm,uwm,master,job.focusDist)
         else:
-            old_net = nntype(layer_sizes[0:2],inds,wm,uwm)
+            old_net = nntype(layer_sizes[0:2],wm,uwm)
         old_net.freeze_weights()
 
         for cur_layer in range(2,len(layer_sizes)):
             if hasattr(nntype, 'split_inds'):
-                net = nntype(layer_sizes[0:2],inds,wm,uwm,master,job.focusDist)
+                net = nntype(layer_sizes[0:cur_layer+1],inds,wm,uwm,master,job.focusDist)
             else:
-                net = nntype(layer_sizes[0:2],inds,wm,uwm)
+                net = nntype(layer_sizes[0:cur_layer+1],wm,uwm)
             net.freeze_weights(old_net)
             net.cuda()
             net, targets = self.train(data, targets, indicators, train_inds, test_inds, net, str(cur_layer), job)
@@ -220,20 +263,4 @@ class Trainer:
         net.cuda()
         net, targets = self.train(data, targets, indicators, train_inds, test_inds, net, "polish", job, lr_fact=0.1)
 
-
-class CanonTrainer(Trainer):
-    
-    def __init__():
-        pass
-
-    def evaluate_test(self):
-
-    def get_targets(self,act_map,indicators):
-        #Currently a bad implementation because it doesn't use the params
-        targ_dir = os.path.join(self.myNav.whit_data_dir, "custom_labels")
-        targets = myNav.load_npy_dir(targ_dir)
-        return targets
-
-    def split_test_train(self):
-        pass
 

@@ -7,6 +7,10 @@ import numpy as np
 import mdtraj as md
 from scipy.linalg import inv, sqrtm
 
+# Could maybe rename this #utils.py
+# Also, using MPI mode might be better memory solution
+# than writing out files
+
 def make_dir(dir_name):
     if not os.path.exists(dir_name):
         os.mkdir(dir_name)
