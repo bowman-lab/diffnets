@@ -263,4 +263,4 @@ class Trainer:
         net.cuda()
         net, targets = self.train(data, targets, indicators, train_inds, test_inds, net, "polish", job, lr_fact=0.1)
 
-
+        return net
