@@ -10,16 +10,14 @@ from torch.autograd import Variable
 
 class Trainer:
 
-    def __init__(self,job,myNav):
+    def __init__(self,job):
         """Object to train your DiffNet
         
         Parameters:
         -----------
         job : dictionary with all training parameters
-        myNav : Navigator object with directory structure details 
         """
         self.job = job
-        self.myNav = myNav
     
     def em_parallel(self, net, data, train_inds, em_batch_size,
                     indicators, em_bounds, em_n_cores):
@@ -191,12 +189,19 @@ class Trainer:
         return targets
 
     def split_test_train(self,frac_test):
-        pass
+        n_test = int(n*fract_test)
+       
+        inds = np.arange(n)
+        np.random.shuffle(inds)
+        train_inds = inds[:-n_test]
+        test_inds = inds[-n_test:]
+
+        return train_inds, test_inds
     
     def run(self):
         job = self.job 
-        data_dir = self.myNav.whit_data_dir
-        outdir = self.myNav.net_dir
+        data_dir = job['data_dir']
+        outdir = job['outdir']
         n_latent = job['n_latent']
         layer_sizes = job['layer_sizes']
         n_cores = job['n_cores'] #can probably get rid of this

@@ -40,40 +40,23 @@ def load_npy_dir(dir_name,pattern):
         all_d = np.vstack(all_d)
     return all_d
 
-#Move to its own file "nnutils.py"
-class Navigator:
-    """Stores all information about directory structure"""
-
-    def __init__(self, og_traj_dir_paths,
-                       og_pdb_fn_paths,
-                       whit_data_dir,
-                       net_dir):
-        #Data dir where trajectories are - trajectories should be
-        # grouped into a specific dir for each variant
-        self.og_traj_dir_paths = og_traj_dir_paths
-        #path to PDB file of each variants
-        self.og_pdb_fn_paths = og_pdb_fn_paths
-        #new data dir for all whitened and processed data
-        self.whit_data_dir = whit_data_dir
-        #output of the neural net training goes in net_dir
-        self.net_dir = net_dir
-        #Aligned xtc output will go here
-        self.xtc_dir = os.path.join(self.whit_data_dir, "aligned_xtcs")
-        #indicators to indicate what variant a traj came from will go here
-        self.indicator_dir = os.path.join(self.whit_data_dir, "indicators")
-
-
 class ProcessTraj:
     """Process raw trajectory data to create organized directories
        with centered trajectories for a selection of atoms that will go into
        DiffNet"""
 
     def __init__(self,
-                 myNav,
+                 traj_dir_paths,
+                 pdb_fn_paths,
+                 outdir,
                  atom_sel="name CA or name CB or name N or name C",
                  stride=1):
                  #gly_mut_ind = []):
-        self.myNav = myNav
+        self.traj_dir_paths = traj_dir_paths
+        self.pdb_fn_paths = pdn_fn_paths
+        self.outdir = outdir
+        self.xtc_dir = os.path.join(outdir, "aligned_xtcs")
+        self.indicator_dir = os.path.join(outdir, "indicators")
         self.atom_sel = atom_sel
         self.master = self.make_master_pdb()
         self.n_feats = 3*self.master.top.n_atoms
@@ -81,7 +64,7 @@ class ProcessTraj:
 
     def make_master_pdb(self):
         ## TODO: Add in a check that all pdbs have same number of atoms
-        pdb_fn = self.myNav.og_pdb_fn_paths[0]
+        pdb_fn = self.pdb_fn_paths[0]
         master = md.load(pdb_fn)
         if isinstance(self.atom_sel, list) or type(self.atom_sel)==np.ndarray:
              inds = self.atom_sel[var_ind]
@@ -89,7 +72,7 @@ class ProcessTraj:
              inds = traj.top.select(self.atom_sel)
         master = master.atom_slice(inds)
         master.center_coordinates()
-        master_fn = os.path.join(self.myNav.whit_data_dir, "master.pdb")
+        master_fn = os.path.join(self.outdir, "master.pdb")
         master.save(master_fn)
         return master
 
@@ -97,8 +80,8 @@ class ProcessTraj:
         traj_num = 0
         inputs = []
         i = 0
-        var_dirs = self.myNav.og_traj_dir_paths
-        pdb_fns = self.myNav.og_pdb_fn_paths
+        var_dirs = self.traj_dir_paths
+        pdb_fns = self.pdb_fn_paths
         for vd, fn in zip(var_dirs,pdb_fns):
             traj_fns = get_fns(vd, "*.xtc")
             for traj_fn in traj_fns:
@@ -145,17 +128,17 @@ class ProcessTraj:
         if traj_num is 0:
             print("Saving xtc")
         
-        new_traj_fn = os.path.join(self.myNav.xtc_dir, str(traj_num).zfill(6) + ".xtc")
+        new_traj_fn = os.path.join(self.xtc_dir, str(traj_num).zfill(6) + ".xtc")
         traj.save(new_traj_fn)
         if traj_num is 0:
             print("Getting/saving CM")
         n = len(traj)
         cm = traj.xyz.reshape((n, 3*traj.top.n_atoms)).mean(axis=0)
-        new_cm_fn = os.path.join(self.myNav.xtc_dir, "cm" + str(traj_num).zfill(6) + ".npy")
+        new_cm_fn = os.path.join(self.xtc_dir, "cm" + str(traj_num).zfill(6) + ".npy")
         np.save(new_cm_fn, cm)
         
         indicators = var_ind * np.ones(n)
-        indicators_fn = os.path.join(self.myNav.indicator_dir, str(traj_num).zfill(6) + ".npy")
+        indicators_fn = os.path.join(self.indicator_dir, str(traj_num).zfill(6) + ".npy")
         np.save(indicators_fn, indicators)
         return n
 
@@ -169,10 +152,10 @@ class ProcessTraj:
         traj_lens = np.array(traj_lens, dtype=int)
         pool.close()
 
-        traj_len_fn = os.path.join(self.myNav.whit_data_dir, "traj_lens.npy")
+        traj_len_fn = os.path.join(self.outdir, "traj_lens.npy")
         np.save(traj_len_fn, traj_lens)
-        traj_fns = get_fns(self.myNav.xtc_dir, "*.xtc")
-        cm_fns = get_fns(self.myNav.xtc_dir, "cm*.npy")
+        traj_fns = get_fns(self.xtc_dir, "*.xtc")
+        cm_fns = get_fns(self.xtc_dir, "cm*.npy")
         n_traj = len(traj_fns)
         print("  Found %d trajectories" % n_traj)
         cm = np.zeros(self.n_feats)
@@ -180,22 +163,21 @@ class ProcessTraj:
             d = np.load(cm_fn)
             cm += traj_lens[i] * d
         cm /= traj_lens.sum()
-        cm_fn = os.path.join(self.myNav.whit_data_dir, "cm.npy")
+        cm_fn = os.path.join(self.myNav.outdir, "cm.npy")
         np.save(cm_fn, cm)
 
     def run(self):
         inputs = self.make_traj_list()
-        xtc_dir = os.path.join(self.myNav.whit_data_dir,"aligned_xtcs")
-        make_dir(xtc_dir)
-        indicator_dir = os.path.join(self.myNav.whit_data_dir,"indicators")
-        make_dir(indicator_dir)
+        make_dir(self.xtc_dir)
+        make_dir(self.indicator_dir)
         self.preprocess_traj(inputs)
         
 class WhitenTraj: 
     
-    def __init__(self,myNav):
-        self.myNav= myNav
-        self.cm = np.load(os.path.join(self.myNav.whit_data_dir,"cm.npy"))
+    def __init__(self,data_dir):
+        self.data_dir = data_dir
+        self.xtc_dir = os.path.join(self.data_dir,"aligned_xtcs")
+        self.cm = np.load(os.path.join(self.data_dir,"cm.npy"))
 
     def get_c00(self, coords, cm, traj_num):
         coords -= cm
@@ -204,7 +186,7 @@ class WhitenTraj:
         #c00 = np.einsum('bi,bo->io', coords, coords)
         #matmul is faster
         c00 = np.matmul(coords.transpose(),coords)
-        np.save(os.path.join(self.myNav.xtc_dir, "cov"+traj_num+".npy"),c00)
+        np.save(os.path.join(self.xtc_dir, "cov"+traj_num+".npy"),c00)
 
     def _get_c00_xtc(self, xtc_fn, top, cm):
         traj = md.load(xtc_fn, top=top)
@@ -223,7 +205,7 @@ class WhitenTraj:
         r = result.get()
         pool.close()        
 
-        c00_fns = np.sort(glob.glob(os.path.join(self.myNav.xtc_dir, "cov*.npy")))
+        c00_fns = np.sort(glob.glob(os.path.join(self.xtc_dir, "cov*.npy")))
         c00 = sum(np.load(c00_fn) for c00_fn in c00_fns)
         c00 /= sum(r)
         return c00
@@ -267,16 +249,16 @@ class WhitenTraj:
         pool.close()
 
     def run(self):
-        outdir = self.myNav.whit_data_dir
+        outdir = self.data_dir
         whitened_dir = os.path.join(outdir,"whitened_xtcs")
         make_dir(whitened_dir)
         n_cores = mp.cpu_count()
-        traj_fns = get_fns(self.myNav.xtc_dir, "*.xtc")
+        traj_fns = get_fns(self.xtc_dir, "*.xtc")
         master = md.load(os.path.join(outdir,"master.pdb"))
         c00 = self.get_c00_xtc_list(traj_fns, master.top, self.cm, n_cores)
         c00_fn = os.path.join(outdir,"c00.npy")
         np.save(c00_fn, c00)
-        c00_fns = np.sort(glob.glob(os.path.join(self.myNav.xtc_dir, "cov*.npy"))
+        c00_fns = np.sort(glob.glob(os.path.join(self.xtc_dir, "cov*.npy"))
         for fn in c00_fns:
             os.remove(fn)
         uwm, wm = self.get_wuw_mats(c00)
