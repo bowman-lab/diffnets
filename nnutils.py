@@ -78,19 +78,17 @@ class CNN(nn.Module):
 
 class split_ae(nn.Module):
     # Move res, focusDist into some other function
-    def __init__(self,layer_sizes,wm,uwm,pdb,res,focusDist=1):
+    def __init__(self,layer_sizes,inds1,inds2,wm,uwm):
         super(split_ae, self).__init__()
         self.sizes = layer_sizes
         self.n = len(self.sizes)
-        self.inds1, self.inds2 = self.split_inds()
+        self.inds1 = inds1
+        self.inds2 = inds2
         self.n_features = len(self.inds1)+len(self.inds2)
         self.wm1 = wm[self.inds1[:,None],self.inds1]
         self.wm2 = wm[self.inds2[:,None],self.inds2]
         self.uwm = uwm
         self.ratio = len(inds1)/(len(inds1)+len(inds2))
-        self.res = res #res number
-        self.focusDist = focusDist
-        self.pdb = pdb
 
         self.encoder1 = nn.ModuleList()
         self.encoder2 = nn.ModuleList()
@@ -115,19 +113,9 @@ class split_ae(nn.Module):
         for i in range(self.n-1,0,-1):
             self.decoder.append(nn.Linear(self.sizes[i], self.sizes[i-1]))
 
+    @property
     def split_inds(self):
-        start_ind = list(self.pdb.topology.residues)[0].resSeq
-        mdtraj_ind = self.res - start_ind
-        res_atoms = pdb.topology.select("resid %s" % mdtraj_ind)
-        dist_combos = [res_atoms,np.arange(pdb.n_atoms)]
-        dist_combos = np.array(list(itertools.product(*dist_combos)))
-
-        dpdb = md.compute_distances(pdb,dist_combos)
-        ind1_loc = np.where(dpdb.flatten()<self.focusDist)[0]
-        inds1 = np.unique(dist_combos[ind1_loc].flatten())
-        inds2 = np.setdiff1d(np.arange(self.pdb.n_atoms),inds1)
-        #add x,y,z
-        return inds1, inds2
+        return True
 
     def freeze_weights(self,old_net=None):
         vwm = Variable(torch.from_numpy(self.wm1).type(torch.FloatTensor))
@@ -150,13 +138,13 @@ class split_ae(nn.Module):
         if old_net:
             n_old = len(old_net.encoder1)
             for i in range(1,n_old):
-                net.encoder1[i].weight.data = old_net.encoder1[i].weight.data
-                net.encoder1[i].bias.data = old_net.encoder1[i].bias.data
-                for p in net.encoder1[i].parameters():
+                self.encoder1[i].weight.data = old_net.encoder1[i].weight.data
+                self.encoder1[i].bias.data = old_net.encoder1[i].bias.data
+                for p in self.encoder1[i].parameters():
                     p.requires_grad = False
-                net.encoder2[i].weight.data = old_net.encoder2[i].weight.data
-                net.encoder2[i].bias.data = old_net.encoder2[i].bias.data
-                for p in net.encoder2[i].parameters():
+                self.encoder2[i].weight.data = old_net.encoder2[i].weight.data
+                self.encoder2[i].bias.data = old_net.encoder2[i].bias.data
+                for p in self.encoder2[i].parameters():
                     p.requires_grad = False
 
     def unfreeze_weights(self):
@@ -192,8 +180,8 @@ class split_ae(nn.Module):
         return recon, latent, None
 
 class split_sae(split_ae):
-    def __init__(self, layer_sizes,inds1,inds2):
-        super(split_sae, self).__init__(layer_sizes,inds1,inds2)
+    def __init__(self, layer_sizes,inds1,inds2,wm,uwm):
+        super(split_sae, self).__init__(layer_sizes,inds1,inds2,wm,uwm)
 
         self.classifier = nn.Linear(self.encoder1[-1].weight.data.shape[0], 1)
 
@@ -231,7 +219,7 @@ class ae(nn.Module):
         for p in self.encoder[0].parameters():
             p.requires_grad = False
         self.decoder[-1].weight.data = Variable(torch.from_numpy(self.uwm).type(torch.FloatTensor))
-        self.decoder[-1].bias.data = Variable(torch.from_numpy(np.zeros(len(self.uwm)).type(torch.FloatTensor))
+        self.decoder[-1].bias.data = Variable(torch.from_numpy(np.zeros(len(self.uwm))).type(torch.FloatTensor))
         for p in self.decoder[-1].parameters():
             p.requires_grad = False
 
@@ -414,6 +402,26 @@ def chunks(arr, chunk_size):
     """Yield successive chunk_size chunks from arr."""
     for i in range(0, len(arr), chunk_size):
         yield arr[i:i + chunk_size]
+
+
+def split_inds(pdb,resnum,focus_dist):
+        res_atoms = pdb.topology.select("resSeq %s" % resnum)
+        dist_combos = [res_atoms,np.arange(pdb.n_atoms)]
+        dist_combos = np.array(list(itertools.product(*dist_combos)))
+
+        dpdb = md.compute_distances(pdb,dist_combos)
+        ind_loc = np.where(dpdb.flatten()<focus_dist)[0]
+        inds = np.unique(dist_combos[ind_loc].flatten())
+
+        close_xyz_inds = []
+        for i in inds:
+            close_xyz_inds.append(i*3)
+            close_xyz_inds.append((i*3)+1)
+            close_xyz_inds.append((i*3)+2)
+        all_inds = np.arange((pdb.n_atoms*3))
+        non_close_xyz_inds = np.setdiff1d(all_inds,close_xyz_inds)
+
+        return np.array(close_xyz_inds), non_close_xyz_inds
 
 
 def _encode_dir(xtc_fn, net_fn, outdir, top, cm):

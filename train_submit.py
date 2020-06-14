@@ -1,6 +1,7 @@
 import numpy as np
 import mdtraj as md
 import nnutils
+import os
 from training import Trainer
 from analysis import Analysis
 
@@ -14,7 +15,7 @@ if __name__=='__main__':
     n_atoms = master.top.n_atoms
     n_features = 3 * n_atoms
 
-    n_epochs = 20
+    n_epochs = 2
     # map from variant index to whether active (1) or inactive (0)
     # for classification labels
     act_map = np.array([0, 0, 1, 1], dtype=int) #v, wt, t, s
@@ -53,7 +54,7 @@ if __name__=='__main__':
                 job['epoch_output_freq'] = 2
                 job['test_batch_size'] = 1000
                 job['frac_test'] = 0.1
-                job['subsample'] = 1
+                job['subsample'] = 10
                 jobs.append(job)
 
     for job in jobs:
@@ -72,8 +73,20 @@ if __name__=='__main__':
         cmd = "mkdir %s" % outdir
         os.system(cmd)
 
+        if hasattr(job['nntype'], 'split_inds'):
+            # inds1 - indices used for classification
+            # inds2 - indices for rest of proteins
+            # Must consider that there is an index for each x, y, and z
+            # coordinate. e.g. if you want to select atom 0 and atom 1, 
+            # the indices are 0,1,2 and 3,4,5
+            # split_inds is one simple approach for specifying a portion
+            # of the protein to classify
+            job['inds1'], job['inds2'] = nnutils.split_inds(master,182,1)
+
         trainer = Trainer(job)
         net = trainer.run()
+        print("network trained")
 
         a = Analysis(net,data_dir,outdir)
         a.run_simple()
+        print("analysis done")

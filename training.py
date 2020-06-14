@@ -2,6 +2,13 @@ import os
 import pickle
 import sys
 import multiprocessing as mp
+import mdtraj as md
+import numpy as np
+import exmax
+import copy
+import nnutils
+import pickle
+import data_processing
 
 import torch
 import torch.nn as nn
@@ -41,7 +48,7 @@ class Trainer:
             i += 1
 
         pool = mp.Pool(processes=em_n_cores)
-        res = pool.map(apply_exmax, inputs)
+        res = pool.map(self.apply_exmax, inputs)
         pool.close()
 
         new_labels = -1 * np.ones((indicators.shape[0], 1))
@@ -75,7 +82,7 @@ class Trainer:
             #sys.exit(1)
         return cur_labels.reshape((cur_labels.shape[0], 1))
 
-    def train(self):
+    def train(self, data, targets, indicators, train_inds, test_inds, net, label_str, job, lr_fact=1.0):
         job = self.job
         do_em = job['do_em']
         n_epochs = job['n_epochs']
@@ -89,7 +96,8 @@ class Trainer:
         nntype = job['nntype']
         em_batch_size = job['em_batch_size']
         em_n_cores = job['em_n_cores']
- 
+        outdir = job['outdir'] 
+
         n_test = test_inds.shape[0]
         n_batch = np.ceil(train_inds.shape[0]*1.0/subsample/batch_size)
 
@@ -188,8 +196,8 @@ class Trainer:
         targets[:, 0] = act_map[indicators]
         return targets
 
-    def split_test_train(self,frac_test):
-        n_test = int(n*fract_test)
+    def split_test_train(self,n,frac_test):
+        n_test = int(n*frac_test)
        
         inds = np.arange(n)
         np.random.shuffle(inds)
@@ -238,7 +246,7 @@ class Trainer:
 
         data -= cm
 
-        train_inds, test_inds = self.split_test_train(frac_test)
+        train_inds, test_inds = self.split_test_train(n_snapshots,frac_test)
         n_train = train_inds.shape[0]
         n_test = test_inds.shape[0]
         out_fn = os.path.join(outdir, "train_inds.npy")
@@ -248,14 +256,16 @@ class Trainer:
         print("    n train/test", n_train, n_test)
 
         if hasattr(nntype, 'split_inds'):
-            old_net = nntype(layer_sizes[0:2],inds,wm,uwm,master,job.focusDist)
+            inds1 = job['inds1']
+            inds2 = job['inds2']
+            old_net = nntype(layer_sizes[0:2],inds1,inds2,wm,uwm)
         else:
             old_net = nntype(layer_sizes[0:2],wm,uwm)
         old_net.freeze_weights()
 
         for cur_layer in range(2,len(layer_sizes)):
             if hasattr(nntype, 'split_inds'):
-                net = nntype(layer_sizes[0:cur_layer+1],inds,wm,uwm,master,job.focusDist)
+                net = nntype(layer_sizes[0:cur_layer+1],inds1,inds2,wm,uwm)
             else:
                 net = nntype(layer_sizes[0:cur_layer+1],wm,uwm)
             net.freeze_weights(old_net)

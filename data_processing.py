@@ -53,7 +53,7 @@ class ProcessTraj:
                  stride=1):
                  #gly_mut_ind = []):
         self.traj_dir_paths = traj_dir_paths
-        self.pdb_fn_paths = pdn_fn_paths
+        self.pdb_fn_paths = pdb_fn_paths
         self.outdir = outdir
         self.xtc_dir = os.path.join(outdir, "aligned_xtcs")
         self.indicator_dir = os.path.join(outdir, "indicators")
@@ -67,12 +67,13 @@ class ProcessTraj:
         pdb_fn = self.pdb_fn_paths[0]
         master = md.load(pdb_fn)
         if isinstance(self.atom_sel, list) or type(self.atom_sel)==np.ndarray:
-             inds = self.atom_sel[var_ind]
+             inds = self.atom_sel[0]
         else:
-             inds = traj.top.select(self.atom_sel)
+             inds = master.top.select(self.atom_sel)
         master = master.atom_slice(inds)
         master.center_coordinates()
         master_fn = os.path.join(self.outdir, "master.pdb")
+        make_dir(self.outdir)
         master.save(master_fn)
         return master
 
@@ -143,6 +144,9 @@ class ProcessTraj:
         return n
 
     def preprocess_traj(self,inputs):
+        # If you use 20 cores to load in 20 trajectories at a time
+        # make sure the node has enough memory for all 20 trajectories
+        # or your job might stall without crashing :/
         n_cores = mp.cpu_count()
         pool = mp.Pool(processes=n_cores)
         f = functools.partial(self._preprocess_traj)
@@ -163,7 +167,7 @@ class ProcessTraj:
             d = np.load(cm_fn)
             cm += traj_lens[i] * d
         cm /= traj_lens.sum()
-        cm_fn = os.path.join(self.myNav.outdir, "cm.npy")
+        cm_fn = os.path.join(self.outdir, "cm.npy")
         np.save(cm_fn, cm)
 
     def run(self):
@@ -258,7 +262,7 @@ class WhitenTraj:
         c00 = self.get_c00_xtc_list(traj_fns, master.top, self.cm, n_cores)
         c00_fn = os.path.join(outdir,"c00.npy")
         np.save(c00_fn, c00)
-        c00_fns = np.sort(glob.glob(os.path.join(self.xtc_dir, "cov*.npy"))
+        c00_fns = np.sort(glob.glob(os.path.join(self.xtc_dir, "cov*.npy")))
         for fn in c00_fns:
             os.remove(fn)
         uwm, wm = self.get_wuw_mats(c00)

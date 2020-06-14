@@ -1,43 +1,48 @@
 import mdtraj as md
+import numpy as np
 import nnutils
-import multiprocess as mp
+import multiprocessing as mp
+import os
+import functools
+from torch.autograd import Variable
+import torch
 
 class Analysis:
 
-    def __init__(self, net, nav):
+    def __init__(self, net, netdir, datadir):
         self.net = net
-        self.nav = nav
+        self.netdir = netdir
+        self.datadir = datadir
         self.top = md.load(os.path.join(
-                           self.nav.whit_data_dir, "master.pdb")
-        self.cm = np.load(os.path.join(self.nav.whit_data_dir, "cm.npy")
+                           self.netdir, "master.pdb"))
+        self.cm = np.load(os.path.join(self.datadir, "cm.npy"))
         self.n_cores = mp.cpu_count()
 
     def encode_data(self):
-        enc_dir = os.path.join(self.nav.net_dir, "encodings")
+        enc_dir = os.path.join(self.netdir, "encodings")
         nnutils.mkdir(enc_dir)
-        xtc_dir = os.path.join(self.nav.whit_data_dir, "aligned_xtcs")
-        encode_dir(net, xtc_dir, enc_dir, self.top, self.n_cores, self.cm)
-        net.encoder1[-1].out_features
+        xtc_dir = os.path.join(self.datadir, "aligned_xtcs")
+        encode_dir(self.net, xtc_dir, enc_dir, self.top, self.n_cores, self.cm)
 
-    def recon_traj(self,enc):
-        recon_dir = os.path.join(self.nav.net_dir, "recon_trajs")
+    def recon_traj(self):
+        recon_dir = os.path.join(self.netdir, "recon_trajs")
         nnutils.mkdir(recon_dir)
-        enc_dir = os.path.join(self.nav.net_dir, "encodings")
-        recon_traj_dir(self.net, enc_dir, recon_dir, self.top,
+        enc_dir = os.path.join(self.netdir, "encodings")
+        recon_traj_dir(self.net, enc_dir, recon_dir, self.top.top,
                        self.cm, self.n_cores)
         print("trajectories reconstructed")
 
-    def get_labels(self,enc):
-        label_dir = os.path.join(self.nav.net_dir, "labels")
+    def get_labels(self):
+        label_dir = os.path.join(self.netdir, "labels")
         nnutils.mkdir(label_dir)
-        enc_dir = os.path.join(self.nav.net_dir, "encodings")
+        enc_dir = os.path.join(self.netdir, "encodings")
         calc_labels(self.net, enc_dir, label_dir, self.n_cores)
         print("labels calculated for all states")
 
     def get_rmsd(self):
-        rmsd_fn = os.path.join(self.nav.net_dir, "rmsd.npy")
-        recon_dir = os.path.join(self.nav.net_dir, "recon_trajs")
-        orig_xtc_dir = os.path.join(self.nav.whit_data_dir, "aligned_xtcs")
+        rmsd_fn = os.path.join(self.netdir, "rmsd.npy")
+        recon_dir = os.path.join(self.netdir, "recon_trajs")
+        orig_xtc_dir = os.path.join(self.datadir, "aligned_xtcs")
         rmsd = rmsd_dists_dir(recon_dir, orig_xtc_dir, self.top, self.n_cores)
         np.save(rmsd_fn, rmsd)
 
@@ -69,11 +74,12 @@ class Analysis:
         self.get_rmsd()
 
     def run_full(self):
-
+        pass
 
 def recon_traj(enc, net, top, cm):
     n = len(enc)
     n_atoms = top.n_atoms
+    print(n_atoms)
     x = Variable(torch.from_numpy(enc).type(torch.FloatTensor))
     coords = net.decode(x)
     coords = coords.detach().numpy()
@@ -93,7 +99,7 @@ def _recon_traj_dir(enc_fn, net, recon_dir, top, cm):
     traj.save(new_fn)
 
 def recon_traj_dir(net, enc_dir, recon_dir, top, cm, n_cores):
-    enc_fns = get_fns(enc_dir, "*.npy")
+    enc_fns = nnutils.get_fns(enc_dir, "*.npy")
     
     pool = mp.Pool(processes=n_cores)
     f = functools.partial(_recon_traj_dir, net=net, recon_dir=recon_dir, top=top, cm=cm)
@@ -102,13 +108,9 @@ def recon_traj_dir(net, enc_dir, recon_dir, top, cm, n_cores):
 
 def _calc_labels(enc_fn, net, label_dir):
     enc = np.load(enc_fn)
-    try:
-        # If a split encoder, only take the latent variables 
-        # associated with the classification task
-        x = net.encoder1[-1].out_features:
+    if hasattr(net,"split_inds"):
+        x = net.encoder1[-1].out_features
         enc = enc[:,:x]
-    except:
-        pass
     enc = Variable(torch.from_numpy(enc).type(torch.FloatTensor))
     labels = net.classify(enc)
     labels = labels.detach().numpy()
@@ -118,11 +120,10 @@ def _calc_labels(enc_fn, net, label_dir):
     np.save(new_fn, labels)
 
 def calc_labels(net, enc_dir, label_dir, n_cores):
-    enc_fns = get_fns(enc_dir, "*npy")
+    enc_fns = nnutils.get_fns(enc_dir, "*npy")
 
     pool = mp.Pool(processes=n_cores)
-    f = functools.partial(_calc_labels, net=net, label_dir=label_dir,
-            net_type='split')
+    f = functools.partial(_calc_labels, net=net, label_dir=label_dir)
     pool.map(f, enc_fns)
     pool.close()
 
@@ -148,7 +149,7 @@ def _rmsd_dists_dir(recon_fn, orig_xtc_dir, ref_pdb):
     return pairwise_rmsd
 
 def rmsd_dists_dir(recon_dir, orig_xtc_dir, ref_pdb, n_cores):
-    recon_fns = get_fns(recon_dir, "*.xtc")
+    recon_fns = nnutils.get_fns(recon_dir, "*.xtc")
 
     pool = mp.Pool(processes=n_cores)
     f = functools.partial(_rmsd_dists_dir, orig_xtc_dir=orig_xtc_dir, ref_pdb=ref_pdb)
@@ -176,7 +177,7 @@ def _encode_dir(xtc_fn, net, outdir, top, cm):
     np.save(new_fn, output)
 
 def encode_dir(net, xtc_dir, outdir, top, n_cores, cm):
-    xtc_fns = get_fns(xtc_dir, "*.xtc")
+    xtc_fns = nnutils.get_fns(xtc_dir, "*.xtc")
 
     pool = mp.Pool(processes=n_cores)
     f = functools.partial(_encode_dir, net=net, outdir=outdir, top=top, cm=cm)
