@@ -207,8 +207,8 @@ class ProcessTraj:
         self.preprocess_traj(inputs)
         
 class WhitenTraj: 
-    """Normalize the trajectories with a data whitening procedure that
-       remove covariance between atoms in trajectories.
+    """Normalize the trajectories with a data whitening procedure [1] that
+       removes covariance between atoms in trajectories.
 
        Parameters
        ---------
@@ -216,6 +216,12 @@ class WhitenTraj:
            Path to a directory that contains a topology file, a file with
            the mean center of mass of all atoms across all trajectories, 
            and a dir named "aligned_xtcs" with all aligned trajectories.
+
+       References
+       ----------
+       [1] Wehmeyer C, Noé F. Time-lagged autoencoders: Deep learning of 
+       slow collective variables for molecular kinetics. J Chem Phys. 2018. 
+       doi:10.1063/1.5011399
     """
     def __init__(self,data_dir):
         self.data_dir = data_dir

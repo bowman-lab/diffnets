@@ -10,68 +10,24 @@ import torch.nn.functional as F
 
 from torch.autograd import Variable
 
-class CNN(nn.Module):
-    """CNN."""
-
-    def __init__(self):
-        """CNN Builder."""
-        super(CNN, self).__init__()
-
-        self.conv_layer = nn.Sequential(
-
-            # Conv Layer block 1
-            nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-
-            # Conv Layer block 2
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Dropout2d(p=0.05),
-
-            # Conv Layer block 3
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-        )
-
-
-        self.fc_layer = nn.Sequential(
-            nn.Dropout(p=0.1),
-            nn.Linear(4096, 1024),
-            nn.ReLU(inplace=True),
-            nn.Linear(1024, 512),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.1),
-            nn.Linear(512, 1)
-        )
-
-    def forward(self, x):
-        """Perform forward."""
-
-        # conv layers
-        x = self.conv_layer(x)
-
-        # flatten
-        x = x.view(x.size(0), -1)
-
-        # fc layer
-        x = self.fc_layer(x)
-
-        return torch.sigmoid(x)
-
 class split_ae(nn.Module):
-    # Move res, focusDist into some other function
+    """Unsupervised autoencoder with a split input (i.e. 2 encoders)
+
+       Parameters
+       ----------
+       layer_sizes : list
+           List of integers indicating the size of each layer in the 
+           encoder including the latent layer. First two must be identical.
+       inds1 : np.ndarray 
+             Indices in the training input array that go into encoder1.
+       inds2 : np.ndarray
+             Indices in the training input array that go into encoder2.
+       wm : np.ndarray, shape=(n_inputs,n_inputs)
+            Whitening matrix -- is applied to input data
+       uwm : np.ndarray, shape=(n_inputs,n_inputs)
+            unwhitening matrix
+       """
+
     def __init__(self,layer_sizes,inds1,inds2,wm,uwm):
         super(split_ae, self).__init__()
         self.sizes = layer_sizes
@@ -112,6 +68,17 @@ class split_ae(nn.Module):
         return True
 
     def freeze_weights(self,old_net=None):
+        """Procedure to make the whitening matrix and unwhitening matrix
+           as untrainable layers. Additionally, freezes weights associated
+           with a previously learned encoder layer.
+
+        Parameters
+        ----------
+        old_net : split_ae object
+            Previously trained network with overlapping architecture. Weights
+            learned in this previous networks encoder will be frozen in the
+            new network.
+        """
         vwm = Variable(torch.from_numpy(self.wm1).type(torch.FloatTensor))
         self.encoder1[0].weight.data = vwm
         vz = Variable(torch.from_numpy(np.zeros(len(self.inds1))).type(torch.FloatTensor))
@@ -142,6 +109,8 @@ class split_ae(nn.Module):
                     p.requires_grad = False
 
     def unfreeze_weights(self):
+        """Makes all encoders weights trainable.
+        """
         n_old = len(self.encoder1)
         for i in range(1,n_old):
            for p in self.encoder1[i].parameters():
@@ -150,6 +119,20 @@ class split_ae(nn.Module):
                p.requires_grad = True
 
     def encode(self,x):
+        """Pass the data through the encoder to the latent layer.
+
+        Parameters
+        ----------
+        x : torch.cuda.FloatTensor or torch.FloatTensor
+            Input data for a given sample
+
+        Returns
+        -------
+        lat1 : torch.cuda.FloatTensor or torch.FloatTensor
+            Latent space vector associated with encoder1
+        lat2 : torch.cuda.FloatTensor or torch.FloatTensor
+            Latent space vector associated with encoder2
+        """
         x1 = x[:,self.inds1]
         x2 = x[:,self.inds2]
         lat1 = self.encoder1[0](x1)
@@ -160,6 +143,18 @@ class split_ae(nn.Module):
         return lat1, lat2
 
     def decode(self,latent):
+        """Pass the latent space vector through the decoder
+
+        Parameters
+        ----------
+        latent : torch.cuda.FloatTensor or torch.FloatTensor
+            Latent space vector
+
+        Returns
+        -------
+        recon : torch.cuda.FloatTensor or torch.FloatTensor
+            Reconstruction of the original input data
+        """
         recon = latent
         for i in range(self.n-2):
             recon = F.leaky_relu(self.decoder[i](recon))
@@ -167,6 +162,20 @@ class split_ae(nn.Module):
         return recon
 
     def forward(self,x):
+        """Pass data through the entire network
+        
+        Parameters 
+        ----------
+        x : torch.cuda.FloatTensor or torch.FloatTensor
+            Input data for a given sample
+
+        Returns
+        -------
+        recon : torch.cuda.FloatTensor or torch.FloatTensor
+            Reconstruction of the original input data
+        latent : torch.cuda.FloatTensor or torch.FloatTensor
+            Latent space vector
+        """
         lat1, lat2 = self.encode(x)
         latent = torch.cat((lat1,lat2),1)
         recon = self.decode(latent)
@@ -180,9 +189,36 @@ class split_sae(split_ae):
         self.classifier = nn.Linear(self.encoder1[-1].weight.data.shape[0], 1)
 
     def classify(self, latent):
+        """Perfom classification task using latent space representation
+        
+        Parameters
+        ----------
+        latent : torch.cuda.FloatTensor or torch.FloatTensor
+            Latent space vector
+
+        Returns
+        -------
+        Value between 0 and 1
+        """
         return torch.sigmoid(self.classifier(latent))
 
     def forward(self, x):
+        """Pass data through the entire network
+
+        Parameters
+        ----------
+        x : torch.cuda.FloatTensor or torch.FloatTensor
+            Input data for a given sample
+
+        Returns
+        -------
+        recon : torch.cuda.FloatTensor or torch.FloatTensor
+            Reconstruction of the original input data
+        latent : torch.cuda.FloatTensor or torch.FloatTensor
+            Latent space vector
+        label : 
+            Value between 0 and 1
+        """
         lat1, lat2 = self.encode(x)
         
         label = self.classify(lat1)
@@ -194,7 +230,19 @@ class split_sae(split_ae):
 
 
 class ae(nn.Module):
-    def __init__(self, layer_sizes,wm=None,uwm=None):
+    """Unsupervised autoencoder
+
+       Parameters
+       ----------
+       layer_sizes : list
+           List of integers indicating the size of each layer in the
+           encoder including the latent layer. First two must be identical.
+       wm : np.ndarray, shape=(n_inputs,n_inputs)
+            Whitening matrix -- is applied to input data
+       uwm : np.ndarray, shape=(n_inputs,n_inputs)
+            unwhitening matrix
+    """
+    def __init__(self, layer_sizes,wm,uwm):
         super(ae, self).__init__()
         self.sizes = layer_sizes
         self.n = len(self.sizes)
@@ -208,6 +256,17 @@ class ae(nn.Module):
             self.decoder.append(nn.Linear(self.sizes[i], self.sizes[i-1]))
 
     def freeze_weights(self,old_net=None):
+        """Procedure to make the whitening matrix and unwhitening matrix
+           as untrainable layers. Additionally, freezes weights associated
+           with a previously learned encoder layer.
+
+        Parameters
+        ----------
+        old_net : ae object
+            Previously trained network with overlapping architecture. Weights
+            learned in this previous networks encoder will be frozen in the
+            new network.
+        """
         self.encoder[0].weight.data = Variable(torch.from_numpy(self.wm).type(torch.FloatTensor))
         self.encoder[0].bias.data = Variable(torch.from_numpy(np.zeros(len(self.wm))).type(torch.FloatTensor))
         for p in self.encoder[0].parameters():
@@ -226,12 +285,26 @@ class ae(nn.Module):
                     p.requires_grad = False
 
     def unfreeze_weights(self):
+        """Makes all encoders weights trainable.
+        """
         n_old = len(self.encoder)
         for i in range(1,n_old):
            for p in self.encoder[i].parameters():
                p.requires_grad = True
 
     def encode(self, x):
+        """Pass the data through the encoder to the latent layer.
+
+        Parameters
+        ----------
+        x : torch.cuda.FloatTensor or torch.FloatTensor
+            Input data for a given sample
+
+        Returns
+        -------
+        latent : torch.cuda.FloatTensor or torch.FloatTensor
+            Latent space vector associated with encoder1
+        """
         # whiten, without applying non-linearity
         latent = self.encoder[0](x)
 
@@ -242,6 +315,18 @@ class ae(nn.Module):
         return latent
 
     def decode(self, x):
+        """Pass the latent space vector through the decoder
+
+        Parameters
+        ----------
+        x : torch.cuda.FloatTensor or torch.FloatTensor
+            Latent space vector
+
+        Returns
+        -------
+        recon : torch.cuda.FloatTensor or torch.FloatTensor
+            Reconstruction of the original input data
+        """
         # do non-linear layers
         recon = x
         for i in range(self.n-2):
@@ -253,6 +338,20 @@ class ae(nn.Module):
         return recon
 
     def forward(self, x):
+        """Pass data through the entire network
+
+        Parameters
+        ----------
+        x : torch.cuda.FloatTensor or torch.FloatTensor
+            Input data for a given sample
+
+        Returns
+        -------
+        recon : torch.cuda.FloatTensor or torch.FloatTensor
+            Reconstruction of the original input data
+        latent : torch.cuda.FloatTensor or torch.FloatTensor
+            Latent space vector
+        """
         latent = self.encode(x)
         recon = self.decode(latent)
         # None for labels, so number returns same as sae class
@@ -261,6 +360,13 @@ class ae(nn.Module):
 
 # build classifier based on latent representation from an AE
 class classify_ae(nn.Module):
+    """Logistic Regression model
+       
+       Parameters
+       ----------
+       n_latent : int
+           Number of latent variables
+    """
     def __init__(self, n_latent):
         super(classify_ae, self).__init__()
         self.n_latent = n_latent
@@ -268,22 +374,83 @@ class classify_ae(nn.Module):
         self.fc1 = nn.Linear(self.n_latent, 1)
 
     def classify(self, x):
+        """Perfom classification task using latent space representation
+
+        Parameters
+        ----------
+        x : torch.cuda.FloatTensor or torch.FloatTensor
+            Latent space vector
+
+        Returns
+        -------
+        Value between 0 and 1
+        """
         return torch.sigmoid(self.fc1(x))
 
     def forward(self, x):
+        """Perfom classification task using latent space representation
+
+        Parameters
+        ----------
+        x : torch.cuda.FloatTensor or torch.FloatTensor
+            Latent space vector
+
+        Returns
+        -------
+        Value between 0 and 1
+        """
         return self.classify(x)
 
 
 class sae(ae):
-    def __init__(self, layer_sizes):
-        super(sae, self).__init__(layer_sizes)
+    """Supervised autoencoder
+
+    Parameters
+    ----------
+    layer_sizes : list
+           List of integers indicating the size of each layer in the
+           encoder including the latent layer. First two must be identical.
+       wm : np.ndarray, shape=(n_inputs,n_inputs)
+            Whitening matrix -- is applied to input data
+       uwm : np.ndarray, shape=(n_inputs,n_inputs)
+            unwhitening matrix
+    """
+    def __init__(self, layer_sizes, wm, uwm):
+        super(sae, self).__init__(layer_sizes,wm,uwm)
         
         self.classifier = nn.Linear(self.sizes[-1], 1)
 
     def classify(self, latent):
+        """Perfom classification task using latent space representation
+
+        Parameters
+        ----------
+        latent : torch.cuda.FloatTensor or torch.FloatTensor
+            Latent space vector
+
+        Returns
+        -------
+        Value between 0 and 1
+        """
         return torch.sigmoid(self.classifier(latent))
 
     def forward(self, x):
+        """Pass through the entire network
+
+        Parameters
+        ----------
+        x : torch.cuda.FloatTensor or torch.FloatTensor
+            Latent space vector
+
+        Returns
+        -------
+        recon : torch.cuda.FloatTensor or torch.FloatTensor
+            Reconstruction of the original input data
+        latent : torch.cuda.FloatTensor or torch.FloatTensor
+            Latent space vector
+        label :
+            Value between 0 and 1
+        """
         latent = self.encode(x)
         label = self.classify(latent)
         recon = self.decode(latent)
@@ -341,10 +508,36 @@ class svae(vae):
 
 
 def my_mse(x, x_recon):
+    """Calculate mean squared error loss
+
+    Parameters
+    ----------
+    x : torch.cuda.FloatTensor or torch.FloatTensor
+        Input data
+    x_recon : torch.cuda.FloatTensor or torch.FloatTensor
+        Reconstructed input
+
+    Returns
+    -------
+    torch.cuda.FloatTensor or torch.FloatTensor
+    """
     return torch.mean(torch.pow(x-x_recon, 2))
 
 
 def my_l1(x, x_recon):
+    """Calculate l1 loss
+
+    Parameters
+    ----------
+    x : torch.cuda.FloatTensor or torch.FloatTensor
+        Input data
+    x_recon : torch.cuda.FloatTensor or torch.FloatTensor
+        Reconstructed input
+
+    Returns
+    -------
+    torch.cuda.FloatTensor or torch.FloatTensor
+    """
     return torch.mean(torch.abs(x-x_recon))
 
 def chunks(arr, chunk_size):
@@ -353,6 +546,29 @@ def chunks(arr, chunk_size):
         yield arr[i:i + chunk_size]
 
 def split_inds(pdb,resnum,focus_dist):
+        """Identify indices close and far from a residue of interest.
+           Each index corresponds to an X,Y, or Z coordinate of an atom
+           in the pdb.
+
+        Parameters
+        ----------
+        pdb : md.Trajectory object
+            Structure used to find close/far indices.
+        resnum : integer
+            The residue number of interest.
+        focus_dist : float (nannmeters)
+            All indices within this distance of resnum will be selected
+            as close indices.
+
+        Returns
+        -------
+        close_xyz_inds : np.ndarray
+            Indices of x,y,z positions of atoms in pdb that are close
+            to resnum.
+        non_close_xyz_inds : np.ndarray
+            Indices of x,y,z positions of atoms in pdb that are not
+            close to resnum.
+        """
         res_atoms = pdb.topology.select("resSeq %s" % resnum)
         dist_combos = [res_atoms,np.arange(pdb.n_atoms)]
         dist_combos = np.array(list(itertools.product(*dist_combos)))
