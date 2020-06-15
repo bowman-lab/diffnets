@@ -1,20 +1,14 @@
 # supervised autoencoders
-import functools
-import glob
 import mdtraj as md
 import multiprocessing as mp
 import numpy as np
 import os
 import itertools
-import pickle
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import whiten
-import matplotlib.pyplot as plt
 
 from torch.autograd import Variable
-from sklearn.metrics import roc_auc_score, roc_curve
 
 class CNN(nn.Module):
     """CNN."""
@@ -353,56 +347,10 @@ def my_mse(x, x_recon):
 def my_l1(x, x_recon):
     return torch.mean(torch.abs(x-x_recon))
 
-
-def mkdir(dir_name):
-    if not os.path.exists(dir_name):
-        os.mkdir(dir_name)
-
-
-def get_fns(dir_name, pattern):
-    return np.sort(glob.glob(os.path.join(dir_name, pattern)))
-
-
-def load_npy_dir(dir_name, pattern):
-    fns = get_fns(dir_name, pattern)
-    all_d = []
-    for fn in fns:
-        d = np.load(fn)
-        all_d.append(d)
-    if len(d.shape) == 1:
-        all_d = np.hstack(all_d)
-    else:
-        all_d = np.vstack(all_d)
-    return all_d
-
-
-def load_traj_coords_dir(dir_name, pattern, top):
-    fns = get_fns(dir_name, pattern)
-    all_d = []
-    for fn in fns:
-        t = md.load(fn, top=top)
-        d = t.xyz.reshape((len(t), 3*top.n_atoms))
-        all_d.append(d)
-    all_d = np.vstack(all_d)
-    return all_d
-
-
-def split_test_train(n, pct_test=0.2):
-    n_test = int(n * pct_test)
-
-    inds = np.arange(n)
-    np.random.shuffle(inds)
-    train_inds = inds[:-n_test]
-    test_inds = inds[-n_test:]
-
-    return train_inds, test_inds
-
-
 def chunks(arr, chunk_size):
     """Yield successive chunk_size chunks from arr."""
     for i in range(0, len(arr), chunk_size):
         yield arr[i:i + chunk_size]
-
 
 def split_inds(pdb,resnum,focus_dist):
         res_atoms = pdb.topology.select("resSeq %s" % resnum)
@@ -423,188 +371,3 @@ def split_inds(pdb,resnum,focus_dist):
 
         return np.array(close_xyz_inds), non_close_xyz_inds
 
-
-def _encode_dir(xtc_fn, net_fn, outdir, top, cm):
-    net = pickle.load(open(net_fn, 'rb'))
-    net.cpu()
-    traj = md.load(xtc_fn, top=top)
-    n = len(traj)
-    n_atoms = traj.top.n_atoms
-    x = traj.xyz.reshape((n, 3*n_atoms))-cm
-    x = Variable(torch.from_numpy(x).type(torch.FloatTensor))
-    if hasattr(net, 'reparameterize'):
-        output, _ = net.encode(x)
-    else:
-        output = net.encode(x)
-    output = output.detach().numpy()
-    new_fn = os.path.split(xtc_fn)[1]
-    new_fn = os.path.splitext(new_fn)[0] + ".npy"
-    new_fn = os.path.join(outdir, new_fn)
-    np.save(new_fn, output)
-
-
-def encode_dir(net_fn, xtc_dir, outdir, top, n_cores, cm):
-    xtc_fns = get_fns(xtc_dir, "*.xtc")
-
-    pool = mp.Pool(processes=n_cores)
-    f = functools.partial(_encode_dir, net_fn=net_fn, outdir=outdir, top=top, cm=cm)
-    pool.map(f, xtc_fns)
-    pool.close()
-
-def _encode_dir_split(xtc_fn, net_fn, outdir, top, cm):
-    net = pickle.load(open(net_fn, 'rb'))
-    net.cpu()
-    traj = md.load(xtc_fn, top=top)
-    n = len(traj)
-    n_atoms = traj.top.n_atoms
-    x = traj.xyz.reshape((n, 3*n_atoms))-cm
-    x = Variable(torch.from_numpy(x).type(torch.FloatTensor))
-    if hasattr(net, 'reparameterize'):
-        output, _ = net.encode(x)
-    else:
-        lat1,lat2 = net.encode(x)
-    lat1 = lat1.detach().numpy()
-    lat2 = lat2.detach().numpy()
-    #output = np.concatenate([lat1,lat2],axis=1)
-    new_fn = os.path.split(xtc_fn)[1]
-    new_fn = os.path.splitext(new_fn)[0] + "lat1.npy"
-    new_fn = os.path.join(outdir, new_fn)
-    np.save(new_fn, lat1)
-    new_fn = os.path.split(xtc_fn)[1]
-    new_fn = os.path.splitext(new_fn)[0] + "lat2.npy"
-    new_fn = os.path.join(outdir, new_fn)
-    np.save(new_fn, lat2)
-    output = np.concatenate([lat1,lat2],axis=1)
-    new_fn = os.path.split(xtc_fn)[1]
-    new_fn = os.path.splitext(new_fn)[0] + ".npy"
-    new_fn = os.path.join(outdir, new_fn)
-    np.save(new_fn, output)
-
-
-def encode_dir_split(net_fn, xtc_dir, outdir, top, n_cores, cm):
-    xtc_fns = get_fns(xtc_dir, "*.xtc")
-
-    pool = mp.Pool(processes=n_cores)
-    f = functools.partial(_encode_dir_split, net_fn=net_fn, outdir=outdir, top=top, cm=cm)
-    pool.map(f, xtc_fns)
-    pool.close()
-
-
-def recon_traj(enc, net, top, cm):
-    n = len(enc)
-    n_atoms = top.n_atoms
-    x = Variable(torch.from_numpy(enc).type(torch.FloatTensor))
-    coords = net.decode(x)
-    coords = coords.detach().numpy()
-    coords += cm
-    coords = coords.reshape((n, n_atoms, 3))
-    traj = md.Trajectory(coords, top)
-    return traj
-
-
-def _recon_traj_dir(enc_fn, net_fn, recon_dir, top, cm):
-    net = pickle.load(open(net_fn, 'rb'))
-    net.cpu()
-    enc = np.load(enc_fn)
-    traj = recon_traj(enc, net, top, cm)
-
-    new_fn = os.path.split(enc_fn)[1]
-    base_fn = os.path.splitext(new_fn)[0]
-    new_fn = base_fn + ".xtc"
-    new_fn = os.path.join(recon_dir, new_fn)
-    traj.save(new_fn)
-
-
-def recon_traj_dir(net_fn, enc_dir, recon_dir, top, cm, n_cores):
-    xtc_fns = get_fns(enc_dir, "*npy")
-
-    pool = mp.Pool(processes=n_cores)
-    f = functools.partial(_recon_traj_dir, net_fn=net_fn, recon_dir=recon_dir, top=top, cm=cm)
-    pool.map(f, xtc_fns)
-    pool.close()
-
-
-def _label_dir(enc_fn, net_fn, label_dir):
-    net = pickle.load(open(net_fn, 'rb'))
-    net.cpu()
-    enc = np.load(enc_fn)
-    enc = Variable(torch.from_numpy(enc).type(torch.FloatTensor))
-    labels = net.classify(enc)
-    labels = labels.detach().numpy()
-
-    new_fn = os.path.split(enc_fn)[1]
-    new_fn = os.path.join(label_dir, "lab" + new_fn)
-    np.save(new_fn, labels)
-
-
-def label_dir(net_fn, enc_dir, label_dir, n_cores):
-    xtc_fns = get_fns(enc_dir, "*npy")
-
-    pool = mp.Pool(processes=n_cores)
-    f = functools.partial(_label_dir, net_fn=net_fn, label_dir=label_dir)
-    pool.map(f, xtc_fns)
-    pool.close()
-
-
-def get_rmsd_dists(orig_traj, recon_traj):
-    n_frames = len(recon_traj)
-    if n_frames != len(orig_traj):
-        # should raise exception
-        print("Can't get rmsds between trajectories of different lengths")
-        return
-    pairwise_rmsd = []
-    for i in range(0, n_frames, 10):
-        r = md.rmsd(recon_traj[i], orig_traj[i], parallel=False)[0]
-        pairwise_rmsd.append(r)
-    pairwise_rmsd = np.array(pairwise_rmsd)
-    return pairwise_rmsd
-
-
-def _rmsd_dists_dir(recon_fn, orig_xtc_dir, ref_pdb):
-    recon_traj = md.load(recon_fn, top=ref_pdb.top)
-    base_fn = os.path.split(recon_fn)[1]
-    orig_fn = os.path.join(orig_xtc_dir, base_fn)
-    orig_traj = md.load(orig_fn, top=ref_pdb.top)
-    pairwise_rmsd = get_rmsd_dists(orig_traj, recon_traj)
-    return pairwise_rmsd
-
-
-def rmsd_dists_dir(recon_dir, orig_xtc_dir, ref_pdb, n_cores):
-    recon_fns = get_fns(recon_dir, "*.xtc")
-
-    pool = mp.Pool(processes=n_cores)
-    f = functools.partial(_rmsd_dists_dir, orig_xtc_dir=orig_xtc_dir, ref_pdb=ref_pdb)
-    res = pool.map(f, recon_fns)
-    pool.close()
-
-    pairwise_rmsd = np.concatenate(res)
-    return pairwise_rmsd
-
-def calc_auc(net_fn,out_fn,data,labels):
-    net = pickle.load(open(net_fn, 'rb'))
-    net.cpu()
-    full_x = torch.from_numpy(data).type(torch.FloatTensor)
-    if hasattr(net, "encode"):
-        full_x = Variable(full_x.view(-1, 784).float())
-        pred_x, latents, pred_class = net(full_x)
-        preds = pred_class.detach().numpy()
-    else:
-        full_x = Variable(full_x.view(-1, 3,32,32).float())
-        preds = net(full_x).detach().numpy()
-    fpr, tpr, thresh = roc_curve(labels,preds)
-    auc = roc_auc_score(labels,preds.flatten())
-    print("AUC: %f" % auc)
-    #plt.figure()
-    #lw = 2
-    #plt.plot(fpr, tpr, color='darkorange',
-    #     lw=lw, label='ROC curve (area = %f)' % auc)
-    #plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
-    #plt.xlim([0.0, 1.0])
-    #plt.ylim([0.0, 1.05])
-    #plt.xlabel('False Positive Rate')
-    #plt.ylabel('True Positive Rate')
-    #plt.title('Receiver operating characteristic example')
-    #plt.legend(loc="lower right")
-    #plt.savefig(out_fn)
-    #plt.close()
-    return auc, fpr, tpr

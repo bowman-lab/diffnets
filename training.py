@@ -7,6 +7,7 @@ import numpy as np
 import exmax
 import copy
 import nnutils
+import utils
 import pickle
 import data_processing
 
@@ -228,12 +229,12 @@ class Trainer:
         xtc_dir = os.path.join(data_dir, "aligned_xtcs")        
 
         #Could handle memory better here 
-        data = data_processing.load_traj_coords_dir(xtc_dir, "*.xtc", master.top)
+        data = utils.load_traj_coords_dir(xtc_dir, "*.xtc", master.top)
         n_snapshots = len(data)
         print("    size loaded data", data.shape)
 
         indicator_dir = os.path.join(data_dir, "indicators")
-        indicators = nnutils.load_npy_dir(indicator_dir, "*.npy")
+        indicators = utils.load_npy_dir(indicator_dir, "*.npy")
         indicators = np.array(indicators, dtype=int)
         targets = self.get_targets(act_map,indicators)
 

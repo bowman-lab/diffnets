@@ -86,7 +86,8 @@ if __name__=='__main__':
         trainer = Trainer(job)
         net = trainer.run()
         print("network trained")
-
-        a = Analysis(net,data_dir,outdir)
+        net.cpu()
+        
+        a = Analysis(net,outdir,data_dir)
         a.run_simple()
         print("analysis done")

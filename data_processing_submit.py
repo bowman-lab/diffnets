@@ -1,6 +1,5 @@
 from data_processing import ProcessTraj, WhitenTraj
 import os
-import logging
 
 #Base path to trajectory and topology data
 orig_data_dir = "/project/bowmore/mizimmer/documents/projects/interesting_proteins/beta_lactamase/stabilizing_mutations_data/full_data"

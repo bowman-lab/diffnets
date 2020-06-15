@@ -2,43 +2,11 @@ import os
 import multiprocessing as mp
 import functools
 import glob
+from utils import *
 
 import numpy as np
 import mdtraj as md
 from scipy.linalg import inv, sqrtm
-
-# Could maybe rename this #utils.py
-# Also, using MPI mode might be better memory solution
-# than writing out files
-
-def make_dir(dir_name):
-    if not os.path.exists(dir_name):
-        os.mkdir(dir_name)
-
-def get_fns(dir_name,pattern):
-    return np.sort(glob.glob(os.path.join(dir_name, pattern)))
-
-def load_traj_coords_dir(dir_name,pattern,top):
-    fns = get_fns(dir_name, pattern)
-    all_d = []
-    for fn in fns:
-        t = md.load(fn, top=top)
-        d = t.xyz.reshape((len(t), 3*top.n_atoms))
-        all_d.append(d)
-    all_d = np.vstack(all_d)
-    return all_d
-
-def load_npy_dir(dir_name,pattern):
-    fns = get_fns(dir_name, pattern)
-    all_d = []
-    for fn in fns:
-        d = np.load(fn)
-        all_d.append(d)
-    if len(d.shape) == 1:
-        all_d = np.hstack(all_d)
-    else:
-        all_d = np.vstack(all_d)
-    return all_d
 
 class ProcessTraj:
     """Process raw trajectory data to create organized directories
@@ -73,7 +41,7 @@ class ProcessTraj:
         master = master.atom_slice(inds)
         master.center_coordinates()
         master_fn = os.path.join(self.outdir, "master.pdb")
-        make_dir(self.outdir)
+        mkdir(self.outdir)
         master.save(master_fn)
         return master
 
@@ -172,8 +140,8 @@ class ProcessTraj:
 
     def run(self):
         inputs = self.make_traj_list()
-        make_dir(self.xtc_dir)
-        make_dir(self.indicator_dir)
+        mkdir(self.xtc_dir)
+        mkdir(self.indicator_dir)
         self.preprocess_traj(inputs)
         
 class WhitenTraj: 
@@ -255,7 +223,7 @@ class WhitenTraj:
     def run(self):
         outdir = self.data_dir
         whitened_dir = os.path.join(outdir,"whitened_xtcs")
-        make_dir(whitened_dir)
+        mkdir(whitened_dir)
         n_cores = mp.cpu_count()
         traj_fns = get_fns(self.xtc_dir, "*.xtc")
         master = md.load(os.path.join(outdir,"master.pdb"))
