@@ -48,7 +48,6 @@ if __name__=='__main__':
                 job['n_epochs'] = n_epochs
                 job['data_dir'] = data_dir
                 job['act_map'] = act_map
-                job['n_cores'] = n_cores
                 job['batch_size'] = 32
                 job['batch_output_freq'] = 500
                 job['epoch_output_freq'] = 2

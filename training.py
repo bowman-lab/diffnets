@@ -19,16 +19,47 @@ from torch.autograd import Variable
 class Trainer:
 
     def __init__(self,job):
-        """Object to train your DiffNet
+        """Object to train your DiffNet.
         
         Parameters:
         -----------
-        job : dictionary with all training parameters
+        job : dict 
+            Dictionary with all training parameters. See training_dict.txt
+            for all keys. All keys are required. See train_submit.py for an
+            example.
         """
         self.job = job
     
     def em_parallel(self, net, data, train_inds, em_batch_size,
                     indicators, em_bounds, em_n_cores):
+        """Use expectation maximization to update all training classification
+           labels.
+
+        Parameters
+        ----------
+        net : nnutils neural network object
+            Neural network 
+        data : np.ndarray, shape=(n_frames,3*n_atoms)
+            Training data
+        train_inds : np.ndarray
+            Indices in data that are to be trained on
+        em_batch_size : int
+            Number of examples that are have their classification labels
+             updated in a single round of expectation maximization.
+        indicators : np.ndarray, shape=(len(data),)
+            Value to indicate which variant each data frame came from.
+        em_bounds : np.ndarray, shape=(n_variants,2)
+            A range that sets what fraction of conformations you
+            expect a variant to have biochemical property. Rank order
+            of variants is more important than the ranges themselves.
+        em_n_cores : int
+            CPU cores to use for expectation maximization calculation
+
+        Returns
+        -------
+        new_labels : np.ndarray, shape=(len(data),)
+            Updated classification labels for all training examples
+        """
         n_em = np.ceil(train_inds.shape[0]*1.0/em_batch_size)
         freq_output = np.floor(n_em/10.0)
         inputs = []
@@ -57,6 +88,19 @@ class Trainer:
         return new_labels
 
     def apply_exmax(self, inputs):
+        """Apply expectation maximization to a batch of data.
+
+        Parameters
+        ----------
+        inputs : list
+            list where the 0th index is a list of current classification
+            labels of length == batch_size. 1st index is a corresponding
+            list of variant simulation indicators. 2nd index is em_bounds.
+            
+        Returns
+        -------
+        Updated labels -- length == batch size
+        """
         cur_labels, indicators, em_bounds = inputs
         n_vars = em_bounds.shape[0]
 
@@ -83,7 +127,41 @@ class Trainer:
             #sys.exit(1)
         return cur_labels.reshape((cur_labels.shape[0], 1))
 
-    def train(self, data, targets, indicators, train_inds, test_inds, net, label_str, job, lr_fact=1.0):
+    def train(self, data, targets, indicators, train_inds, test_inds,
+              net, label_str, job, lr_fact=1.0):
+        """Core method for training
+
+        Parameters
+        ----------
+        data : np.ndarray, shape=(n_frames,3*n_atoms)
+            Training data
+        targets : np.ndarray, shape=(len(data),)
+            classification labels used for training
+        indicators : np.ndarray, shape=(len(data),)
+            Value to indicate which variant each data frame came from.
+        train_inds : np.ndarray
+            Indices in data that are to be trained on
+        test_inds : np.ndarray
+            Indices in data that are to be validated on
+        net : nnutils neural network object
+            Neural network
+        label_str: int
+            For file naming. Indicates what iteration of training we're
+            on. Training goes through several iterations where neural net
+            architecture is progressively built deeper.
+        job : dict
+            See training_dict.tx for all keys.
+        lr_fact : float
+            Factor to multiply the learning rate by.
+
+        Returns
+        -------
+        best_nn : nnutils neural network object
+            Neural network that has the lowest reconstruction error
+            on the validation set.
+        targets : np.ndarry, shape=(len(data),)
+            Classification labels after training.
+        """
         job = self.job
         do_em = job['do_em']
         n_epochs = job['n_epochs']
@@ -193,11 +271,41 @@ class Trainer:
         return best_nn, targets    
 
     def get_targets(self,act_map,indicators):
+        """Convert variant indicators into classification labels.
+
+        Parameters
+        ----------
+        act_map : np.ndarray, shape=(n_variants,)
+            Initial classification labels to give each variant.
+        indicators : np.ndarray, shape=(len(data),)
+            Value to indicate which variant each data frame came from.
+
+        Returns
+        -------
+        targets : np.ndarry, shape=(len(data),)
+            Classification labels for training.
+        """
         targets = np.zeros((len(indicators), 1))
         targets[:, 0] = act_map[indicators]
         return targets
 
     def split_test_train(self,n,frac_test):
+        """Split data into training and validation sets.
+
+        Parameters
+        ----------
+        n : int
+            number of data points
+        frac_test : float between 0 and 1
+            Fraction of dataset to reserve for validation set
+
+        Returns
+        -------
+        train_inds : np.ndarray
+            Indices in data that are to be trained on
+        test_inds : np.ndarray
+            Indices in data that are to be validated on
+        """
         n_test = int(n*frac_test)
        
         inds = np.arange(n)
@@ -208,12 +316,14 @@ class Trainer:
         return train_inds, test_inds
     
     def run(self):
+        """Wrapper for running the training code
+
+        """
         job = self.job 
         data_dir = job['data_dir']
         outdir = job['outdir']
         n_latent = job['n_latent']
         layer_sizes = job['layer_sizes']
-        n_cores = job['n_cores'] #can probably get rid of this
         nntype = job['nntype']
         frac_test = job['frac_test']
         act_map = job['act_map']

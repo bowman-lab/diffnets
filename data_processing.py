@@ -17,7 +17,9 @@ class ProcessTraj:
     ----------
     traj_dir_paths : list of str's, required
         One string/path for each variant to a dir that contains ALL 
-        trajectory files for that variant.
+        trajectory files for that variant. **ORDER MATTERS** -- when
+        training you will set a value "act_map" that depends on this 
+        order.
     pdn_fn_paths : list of str's,  required
         One string/path for each variant to a dir that contains the
         starting pdb file. Variants must be in same order as traj_dir_paths.
