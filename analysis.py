@@ -23,7 +23,19 @@ from pylab import *
 from torch.autograd import Variable
 
 class Analysis:
+    """Core object for running analysis.
 
+    Parameters
+    ----------
+    net : nnutils object
+        Neural network to perform analysis with
+    netdir : str
+        path to directory with neural network results
+    datadir : str
+        path to directory with data required to train the data. Includes
+        cm.npy, wm.npy, uwm.npy, master.pdb, an aligned_xtcs dir, and an
+        indicators dir.
+    """
     def __init__(self, net, netdir, datadir):
         self.net = net
         self.netdir = netdir
@@ -34,12 +46,16 @@ class Analysis:
         self.n_cores = mp.cpu_count()
 
     def encode_data(self):
+        """Calculate the latent space for all trajectory frames.
+        """
         enc_dir = os.path.join(self.netdir, "encodings")
         utils.mkdir(enc_dir)
         xtc_dir = os.path.join(self.datadir, "aligned_xtcs")
         encode_dir(self.net, xtc_dir, enc_dir, self.top, self.n_cores, self.cm)
 
     def recon_traj(self):
+        """Reconstruct all trajectory frames using the trained neural 
+        network"""
         recon_dir = os.path.join(self.netdir, "recon_trajs")
         utils.mkdir(recon_dir)
         enc_dir = os.path.join(self.netdir, "encodings")
@@ -48,6 +64,8 @@ class Analysis:
         print("trajectories reconstructed")
 
     def get_labels(self):
+        """Calculate the classification score for all trajectory frames
+        """
         label_dir = os.path.join(self.netdir, "labels")
         utils.mkdir(label_dir)
         enc_dir = os.path.join(self.netdir, "encodings")
@@ -55,6 +73,8 @@ class Analysis:
         print("labels calculated for all states")
 
     def get_rmsd(self):
+        """Calculate RMSD between actual trajectory frames and autoencoder
+        reconstructed frames"""
         rmsd_fn = os.path.join(self.netdir, "rmsd.npy")
         recon_dir = os.path.join(self.netdir, "recon_trajs")
         orig_xtc_dir = os.path.join(self.datadir, "aligned_xtcs")
@@ -62,12 +82,36 @@ class Analysis:
         np.save(rmsd_fn, rmsd)
 
     def morph(self,n_frames=10):
+        """Get representative structures for classification scores
+        from 0 to 1.
+
+        Parameters
+        ----------
+        n_frames : int
+            How many representative structures to output. Bins between
+            0 and 1 will be calculated with this number.
+        """
         morph_label(self.net,self.netdir,self.datadir,n_frames=n_frames)
 
     def project_labels():
         pass 
 
     def find_feats(self,inds,n_states=2000,num2plot=100):
+        """Generate a .pml file that will show the distances that change
+        in a way that is most with changes in the classifications score.
+
+        Parameters
+        ----------
+        inds : np.ndarray,
+            Indices of the topology file that are to be included in 
+            calculating what distances are most correlated with classification
+            score.
+        n_states : int (default=2000)
+            How many cluster centers to calculate and use for correlation
+            measurement.
+        num2plot : int (default=100)
+            Number of distances to be shown.
+        """
         cc_dir = os.path.join(self.netdir, "cluster_%" % n_states)
         utils.mkdir(cc_dir)
 
@@ -83,6 +127,9 @@ class Analysis:
             clusters.center_indices,inds,num2plot=num2plot)
 
     def run_core(self):
+        """Wrapper to run the analysis functions that should be 
+        run after training.
+        """
         self.encode_data()
         
         self.recon_traj()
