@@ -15,6 +15,76 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
+from torch.utils import data
+
+class Dataset(data.Dataset):
+  'Characterizes a dataset for PyTorch'
+  def __init__(self, list_IDs, labels, data_dir):
+        'Initialization'
+        self.labels = labels
+        self.list_IDs = list_IDs
+        self.data_dir = data_dir
+
+  def __len__(self):
+        'Denotes the total number of samples'
+        return len(self.list_IDs)
+
+  def __getitem__(self, index):
+        'Generates one sample of data'
+        # Select sample
+        ID = self.list_IDs[index]
+
+        # Load data and get label
+        X = torch.load(data_dir + "/" ID + '.pt')
+        y = self.labels[ID]
+        glob_index = int(ID.split("-")[-1])
+
+        return X, y, glob_index
+
+def set_training_data(job, partition, labels):
+    batch_size = job['batch_size']
+    cpu_cores = job['em_n_cores']
+    test_batch_size = job['test_batch_size']
+    em_batch_size = job['em_batch_size']
+    subsample = job['subsample']
+
+    n_train_inds = len(partition["train"])
+    random_inds = np.random.choice(np.arange(n_train_inds),int(n_train_inds/subsample),replace=False)
+    sampler=data.SubsetRandomSampler(random_inds)
+
+    params_t = {'batch_size': batch_size,
+              'shuffle':False,
+              'num_workers': cpu_cores,
+              'sampler': sampler}
+
+    params_v = {'batch_size': test_batch_size,
+              'shuffle':True,
+              'num_workers': cpu_cores}
+
+    params_e = {'batch_size': em_batch_size,
+              'shuffle':True,
+              'num_workers': cpu_cores}
+
+    n_snapshots = 0
+    for i in partition.values():
+        n_snapshots += len(i)
+
+    IDs = ["ID-%s" % i for i in np.arange(n_snapshots)]
+    targets = {}
+    for i,j in zip(IDs,labels):
+        targets[i] = j
+
+    data_dir = os.path.join(job["data_dir"], "data")
+    training_set = Dataset(partition["train"], targets, data_dir)
+    training_generator = data.DataLoader(training_set, **params_t)
+
+    validation_set = Dataset(partition["validation"], targets, data_dir)
+    validation_generator = data.DataLoader(validation_set, **params_v)
+
+    em_set = Dataset(partition["train"], targets, data_dir)
+    em_generator = data.DataLoader(em_set, **params_e)
+
+    return training_generator, validation_generator, em_generator
 
 class Trainer:
 
@@ -30,7 +100,7 @@ class Trainer:
         """
         self.job = job
     
-    def em_parallel(self, net, data, train_inds, em_batch_size,
+    def em_parallel(self, net, em_generator, train_inds, em_batch_size,
                     indicators, em_bounds, em_n_cores):
         """Use expectation maximization to update all training classification
            labels.
@@ -60,29 +130,36 @@ class Trainer:
         new_labels : np.ndarray, shape=(len(data),)
             Updated classification labels for all training examples
         """
+        use_cuda = torch.cuda.is_available()
+        device = torch.device("cuda:0" if use_cuda else "cpu")
+
         n_em = np.ceil(train_inds.shape[0]*1.0/em_batch_size)
         freq_output = np.floor(n_em/10.0)
+        train_inds = []
         inputs = []
         i = 0
-        for em_batch_inds in nnutils.chunks(train_inds, em_batch_size):
-            em_batch_x = Variable(torch.from_numpy(data[em_batch_inds]).type(torch.cuda.FloatTensor))
+        for local_batch, local_labels, t_inds in em_generator:
+            t_inds = np.array(t_inds)
+            local_batch, local_labels = local_batch.to(device), local_labels.to(device)
             if hasattr(net, "decode"):
                 if hasattr(net, "reparameterize"):
-                    x_pred, latent, logvar, class_pred = net(em_batch_x)
+                    x_pred, latent, logvar, class_pred = net(local_batch)
                 else:
-                    x_pred, latent, class_pred = net(em_batch_x)
+                    x_pred, latent, class_pred = net(local_batch)
             else:
-                class_pred = net(em_batch_x)
+                class_pred = net(local_batch)
             cur_labels = class_pred.cpu().detach().numpy()
-            inputs.append([cur_labels, indicators[em_batch_inds], em_bounds])
+            inputs.append([cur_labels, indicators[t_inds], em_bounds])
             if i % freq_output == 0:
                 print("      %d/%d" % (i, n_em))
             i += 1
+        train_inds.append(t_inds)
 
         pool = mp.Pool(processes=em_n_cores)
         res = pool.map(self.apply_exmax, inputs)
         pool.close()
 
+        train_inds = np.concatenate(np.array(train_inds))
         new_labels = -1 * np.ones((indicators.shape[0], 1))
         new_labels[train_inds] = np.concatenate(res)
         return new_labels
@@ -127,8 +204,9 @@ class Trainer:
             #sys.exit(1)
         return cur_labels.reshape((cur_labels.shape[0], 1))
 
-    def train(self, data, targets, indicators, train_inds, test_inds,
-              net, label_str, job, lr_fact=1.0):
+    def train(self, training_generator, validation_generator, em_generator,
+              targets, indicators, train_inds, test_inds,net, label_str,
+              job, lr_fact=1.0):
         """Core method for training
 
         Parameters
@@ -177,7 +255,13 @@ class Trainer:
         em_n_cores = job['em_n_cores']
         outdir = job['outdir'] 
 
+        use_cuda = torch.cuda.is_available()
+        device = torch.device("cuda:0" if use_cuda else "cpu")
+
         n_test = test_inds.shape[0]
+        lam_cls = 1.0
+        lam_corr = 1.0
+
         n_batch = np.ceil(train_inds.shape[0]*1.0/subsample/batch_size)
 
         optimizer = optim.Adam(net.parameters(), lr=lr)
@@ -188,26 +272,23 @@ class Trainer:
         best_loss = np.inf
         best_nn = None 
         for epoch in range(n_epochs):
-            # shuffle training data
-            np.random.shuffle(train_inds)
-
             # go through mini batches
             running_loss = 0
             i = 0
-            for batch_inds in nnutils.chunks(train_inds[::subsample], batch_size):
-                minibatch_x = Variable(torch.from_numpy(data[batch_inds]).type(torch.cuda.FloatTensor))
-                minibatch_class = Variable(torch.from_numpy(targets[batch_inds]).type(torch.cuda.FloatTensor))
+            for local_batch, local_labels, _ in training_generator:
+                local_labels = Variable(local_labels.type(torch.cuda.FloatTensor))
+                local_batch, local_labels = local_batch.to(device), local_labels.to(device)
 
                 optimizer.zero_grad()    
-                x_pred, latent, class_pred = net(minibatch_x)
-                loss = nnutils.my_mse(minibatch_x, x_pred)
-                loss += nnutils.my_l1(minibatch_x, x_pred)
+                x_pred, latent, class_pred = net(local_batch)
+                loss = nnutils.my_mse(local_batch, x_pred)
+                loss += nnutils.my_l1(local_batch, x_pred)
                 if class_pred is not None:
-                    loss += bce(class_pred, minibatch_class)
+                    loss += bce(class_pred, local_labels).mul_(lam_cls)
 
                 #Minimize correlation between latent variables
                 n_feat = net.sizes[-1]
-                my_c00 = torch.einsum('bi,bo->io', (latent, latent)).mul(1.0/batch_inds.shape[0])
+                my_c00 = torch.einsum('bi,bo->io', (latent, latent)).mul(1.0/local_batch.shape[0])
                 my_mean = torch.mean(latent, 0)
                 my_mean = torch.einsum('i,o->io', (my_mean, my_mean))
                 ide = Variable(torch.from_numpy(np.identity(n_feat)).type(torch.cuda.FloatTensor))
@@ -226,11 +307,11 @@ class Trainer:
                     training_loss_full.append(train_loss)
 
                     test_loss = 0
-                    for test_batch_inds in nnutils.chunks(test_inds, test_batch_size):
-                        test_x = Variable(torch.from_numpy(data[test_batch_inds]).type(torch.cuda.FloatTensor))
-                        x_pred, latent, class_pred = net(test_x)
-                        loss = nnutils.my_mse(test_x,x_pred)
-                        test_loss += loss.item() * test_batch_inds.shape[0] # mult for averaging across samples, as in train_loss
+                    for local_batch, local_labels, _ in validation_generator:
+                        local_batch, local_labels = local_batch.to(device), local_labels.to(device)
+                        x_pred, latent, class_pred = net(local_batch)
+                        loss = nnutils.my_mse(local_batch,x_pred)
+                        test_loss += loss.item() * local_batch.shape[0] # mult for averaging across samples, as in train_loss
                     #print("        ", test_loss)
                     test_loss /= n_test # division averages across samples, as in train_loss
                     test_loss_full.append(test_loss)
@@ -240,11 +321,12 @@ class Trainer:
                     if test_loss < best_loss:
                         best_loss = test_loss
                         best_nn = copy.deepcopy(net)
-                i += 1
+i                i += 1
 
             if do_em and hasattr(nntype, "classify"):
                 print("    Doing EM")
-                targets = self.em_parallel(net, data, train_inds, em_batch_size, indicators, em_bounds, em_n_cores)
+                targets = self.em_parallel(net, em_generator, train_inds, em_batch_size, indicators, em_bounds, em_n_cores)
+                training_generator, validation_generator, em_generator = set_training_data(job, partition, targets)
 
             if epoch % epoch_output_freq == 0:
                 epoch_test_loss.append(test_loss)
@@ -328,25 +410,25 @@ class Trainer:
         frac_test = job['frac_test']
         act_map = job['act_map']
 
-        print("  loading data")
-        master_fn = os.path.join(data_dir, "master.pdb")
-        master = md.load(master_fn)
-        out_fn = os.path.join(outdir, "master.pdb")
-        master.save(out_fn)
-        n_atoms = master.top.n_atoms
-        n_features = 3 * n_atoms
-
-        xtc_dir = os.path.join(data_dir, "aligned_xtcs")        
-
-        #Could handle memory better here 
-        data = utils.load_traj_coords_dir(xtc_dir, "*.xtc", master.top)
-        n_snapshots = len(data)
-        print("    size loaded data", data.shape)
-
         indicator_dir = os.path.join(data_dir, "indicators")
         indicators = utils.load_npy_dir(indicator_dir, "*.npy")
         indicators = np.array(indicators, dtype=int)
         targets = self.get_targets(act_map,indicators)
+        n_snapshots = len(indicators)
+
+        train_inds, test_inds = self.split_test_train(n_snapshots,frac_test)
+
+        partition = {}
+        train_ID = ["ID-%s" % i for i in train_inds]
+        val_ID = ["ID-%s" % i for i in test_inds]
+        partition["train"] = train_ID
+        partition["validation"] = val_ID
+
+        training_generator, validation_generator, em_generator = set_training_data(job, partition, targets)
+
+        print("  data generators created")
+
+        print("# of examples", targets.shape)
 
         wm_fn = os.path.join(data_dir, "wm.npy")
         uwm_fn = os.path.join(data_dir, "uwm.npy")
@@ -355,9 +437,6 @@ class Trainer:
         uwm = np.load(uwm_fn)
         cm = np.load(cm_fn).flatten()
 
-        data -= cm
-
-        train_inds, test_inds = self.split_test_train(n_snapshots,frac_test)
         n_train = train_inds.shape[0]
         n_test = test_inds.shape[0]
         out_fn = os.path.join(outdir, "train_inds.npy")
@@ -381,12 +460,15 @@ class Trainer:
                 net = nntype(layer_sizes[0:cur_layer+1],wm,uwm)
             net.freeze_weights(old_net)
             net.cuda()
-            net, targets = self.train(data, targets, indicators, train_inds, test_inds, net, str(cur_layer), job)
+            net, targets = self.train(training_generator, validation_generator
+                               em_generator, targets, train_inds, test_inds, 
+                               net, str(cur_layer), job, partition)
             old_net = net
 
         #Polishing
         net.unfreeze_weights()
         net.cuda()
-        net, targets = self.train(data, targets, indicators, train_inds, test_inds, net, "polish", job, lr_fact=0.1)
-
+        net, targets = self.train(training_generator, validation_generator
+                               em_generator, targets, train_inds, test_inds,
+                               net, "polish", job, partition, lr_fact=0.1)
         return net
