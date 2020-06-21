@@ -7,6 +7,7 @@ from utils import *
 import numpy as np
 import mdtraj as md
 from scipy.linalg import inv, sqrtm
+import torch
 
 class ProcessTraj:
     """Process raw trajectory data to select a subset of atoms and align all
@@ -197,6 +198,21 @@ class ProcessTraj:
         cm /= traj_lens.sum()
         cm_fn = os.path.join(self.outdir, "cm.npy")
         np.save(cm_fn, cm)
+
+    def traj2samples(self):
+        traj_fns = get_fns(self.xtc_dir, "*.xtc")
+        cm_fn = os.path.join(self.outdir, "cm.npy")
+        cm = np.load(cm_fn)
+        ex_dir = os.path.join(self.outdir,"data")
+        count = 0
+        for t in traj_fns:
+            traj = md.load(t,top=self.master)
+            data = traj.xyz((len(traj),3*self.master.top.n_atoms))
+            data -= cm
+            for d in data:
+                frame = torch.from_numpy(d).type(torch.FloatTensor)
+                torch.save(frame,os.path.join(ex_dir,"ID-%s.pt" % i))
+                i+=1
 
     def run(self):
         """Process raw trajectory data to select a subset of atoms and align all
