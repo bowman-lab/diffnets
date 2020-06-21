@@ -222,8 +222,10 @@ class ProcessTraj:
         inputs = self.make_traj_list()
         mkdir(self.xtc_dir)
         mkdir(self.indicator_dir)
+        mkdir(os.path.join(self.outdir,"data"))
         self.preprocess_traj(inputs)
-        
+        self.traj2samples()
+
 class WhitenTraj: 
     """Normalize the trajectories with a data whitening procedure [1] that
        removes covariance between atoms in trajectories.
