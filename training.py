@@ -35,7 +35,7 @@ class Dataset(data.Dataset):
         ID = self.list_IDs[index]
 
         # Load data and get label
-        X = torch.load(data_dir + "/" ID + '.pt')
+        X = torch.load(self.data_dir + "/" + ID + '.pt')
         y = self.labels[ID]
         glob_index = int(ID.split("-")[-1])
 
@@ -153,7 +153,7 @@ class Trainer:
             if i % freq_output == 0:
                 print("      %d/%d" % (i, n_em))
             i += 1
-        train_inds.append(t_inds)
+            train_inds.append(t_inds)
 
         pool = mp.Pool(processes=em_n_cores)
         res = pool.map(self.apply_exmax, inputs)
@@ -206,7 +206,7 @@ class Trainer:
 
     def train(self, training_generator, validation_generator, em_generator,
               targets, indicators, train_inds, test_inds,net, label_str,
-              job, lr_fact=1.0):
+              job, partition, lr_fact=1.0):
         """Core method for training
 
         Parameters
@@ -321,7 +321,7 @@ class Trainer:
                     if test_loss < best_loss:
                         best_loss = test_loss
                         best_nn = copy.deepcopy(net)
-i                i += 1
+                i += 1
 
             if do_em and hasattr(nntype, "classify"):
                 print("    Doing EM")
@@ -460,15 +460,15 @@ i                i += 1
                 net = nntype(layer_sizes[0:cur_layer+1],wm,uwm)
             net.freeze_weights(old_net)
             net.cuda()
-            net, targets = self.train(training_generator, validation_generator
-                               em_generator, targets, train_inds, test_inds, 
-                               net, str(cur_layer), job, partition)
+            net, targets = self.train(training_generator, validation_generator,
+                               em_generator, targets, indicators, train_inds,
+                               test_inds, net, str(cur_layer), job, partition)
             old_net = net
 
         #Polishing
         net.unfreeze_weights()
         net.cuda()
-        net, targets = self.train(training_generator, validation_generator
-                               em_generator, targets, train_inds, test_inds,
-                               net, "polish", job, partition, lr_fact=0.1)
+        net, targets = self.train(training_generator, validation_generator,
+                               em_generator, targets, indicators, train_inds,
+                               test_inds, net, "polish", job, partition, lr_fact=0.1)
         return net

@@ -41,7 +41,7 @@ class Analysis:
         self.netdir = netdir
         self.datadir = datadir
         self.top = md.load(os.path.join(
-                           self.netdir, "master.pdb"))
+                           self.datadir, "master.pdb"))
         self.cm = np.load(os.path.join(self.datadir, "cm.npy"))
         self.n_cores = mp.cpu_count()
 

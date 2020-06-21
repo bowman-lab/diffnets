@@ -7,7 +7,7 @@ from analysis import Analysis
 
 if __name__=='__main__':
     # Directory with processed/whitened data
-    data_dir = "whitened_data"
+    data_dir = "/project/bowmore/mdward/projects/diffnets-code-testing/whitened_data"
 
     n_cores = 14
     master_fn = os.path.join(data_dir, "master.pdb")
@@ -15,7 +15,7 @@ if __name__=='__main__':
     n_atoms = master.top.n_atoms
     n_features = 3 * n_atoms
 
-    n_epochs = 20
+    n_epochs = 3
     # map from variant index to whether active (1) or inactive (0)
     # for classification labels
     act_map = np.array([0, 0, 1, 1], dtype=int) #v, wt, t, s
