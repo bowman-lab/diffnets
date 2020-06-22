@@ -19,10 +19,10 @@ if __name__=='__main__':
     # map from variant index to whether active (1) or inactive (0)
     # for classification labels
     act_map = np.array([0, 0, 1, 1], dtype=int) #v, wt, t, s
-    n_repeats = 1
+    n_repeats = 2
 
     jobs = []
-    for rep in range(0, n_repeats):
+    for rep in range(1, n_repeats):
         #lr = learning rate
         for lr in [0.0001]: #[0.001, 0.01, 0.1]:
             for n_latent in [50]:
@@ -80,13 +80,14 @@ if __name__=='__main__':
             # the indices are 0,1,2 and 3,4,5
             # split_inds is one simple approach for specifying a portion
             # of the protein to classify
-            job['inds1'], job['inds2'] = nnutils.split_inds(master,70,1)
+            job['inds1'], job['inds2'] = nnutils.split_inds(master,182,1)
 
         trainer = Trainer(job)
-        net = trainer.run()
+        net = trainer.run(data_in_mem=False)
         print("network trained")
         net.cpu()
         
         a = Analysis(net,outdir,data_dir)
         a.run_core()
         print("analysis done")
+

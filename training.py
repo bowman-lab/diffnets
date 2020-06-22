@@ -15,76 +15,34 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
-from torch.utils import data
+from torch.utils import data as torch_data
 
-class Dataset(data.Dataset):
+class Dataset(torch_data.Dataset):
   'Characterizes a dataset for PyTorch'
-  def __init__(self, list_IDs, labels, data_dir):
+  def __init__(self, train_inds, labels, data):
         'Initialization'
         self.labels = labels
-        self.list_IDs = list_IDs
-        self.data_dir = data_dir
+        self.train_inds = train_inds
+        self.data = data
 
   def __len__(self):
         'Denotes the total number of samples'
-        return len(self.list_IDs)
+        return len(self.train_inds)
 
   def __getitem__(self, index):
         'Generates one sample of data'
-        # Select sample
-        ID = self.list_IDs[index]
-
-        # Load data and get label
-        X = torch.load(self.data_dir + "/" + ID + '.pt')
+        #If data needs to be loaded
+        ID = self.train_inds[index]
+        if type(self.data) is str:
+            # Load data and get label
+            X = torch.load(self.data + "/ID-%s" % ID + '.pt')
+        else: 
+            X = torch.from_numpy(self.data[ID]).type(torch.FloatTensor)
         y = self.labels[ID]
-        glob_index = int(ID.split("-")[-1])
+        
+        return X, y, ID
 
-        return X, y, glob_index
 
-def set_training_data(job, partition, labels):
-    batch_size = job['batch_size']
-    cpu_cores = job['em_n_cores']
-    test_batch_size = job['test_batch_size']
-    em_batch_size = job['em_batch_size']
-    subsample = job['subsample']
-
-    n_train_inds = len(partition["train"])
-    random_inds = np.random.choice(np.arange(n_train_inds),int(n_train_inds/subsample),replace=False)
-    sampler=data.SubsetRandomSampler(random_inds)
-
-    params_t = {'batch_size': batch_size,
-              'shuffle':False,
-              'num_workers': cpu_cores,
-              'sampler': sampler}
-
-    params_v = {'batch_size': test_batch_size,
-              'shuffle':True,
-              'num_workers': cpu_cores}
-
-    params_e = {'batch_size': em_batch_size,
-              'shuffle':True,
-              'num_workers': cpu_cores}
-
-    n_snapshots = 0
-    for i in partition.values():
-        n_snapshots += len(i)
-
-    IDs = ["ID-%s" % i for i in np.arange(n_snapshots)]
-    targets = {}
-    for i,j in zip(IDs,labels):
-        targets[i] = j
-
-    data_dir = os.path.join(job["data_dir"], "data")
-    training_set = Dataset(partition["train"], targets, data_dir)
-    training_generator = data.DataLoader(training_set, **params_t)
-
-    validation_set = Dataset(partition["validation"], targets, data_dir)
-    validation_generator = data.DataLoader(validation_set, **params_v)
-
-    em_set = Dataset(partition["train"], targets, data_dir)
-    em_generator = data.DataLoader(em_set, **params_e)
-
-    return training_generator, validation_generator, em_generator
 
 class Trainer:
 
@@ -99,6 +57,44 @@ class Trainer:
             example.
         """
         self.job = job
+
+    def set_training_data(self, job, train_inds, test_inds, labels, data):
+        batch_size = job['batch_size']
+        cpu_cores = job['em_n_cores']
+        test_batch_size = job['test_batch_size']
+        em_batch_size = job['em_batch_size']
+        subsample = job['subsample']
+        data_dir = job["data_dir"]
+
+        n_train_inds = len(train_inds)
+        random_inds = np.random.choice(np.arange(n_train_inds),int(n_train_inds/subsample),replace=False)
+        sampler=torch_data.SubsetRandomSampler(random_inds)
+
+        params_t = {'batch_size': batch_size,
+                  'shuffle':False,
+                  'num_workers': cpu_cores,
+                  'sampler': sampler}
+
+        params_v = {'batch_size': test_batch_size,
+                  'shuffle':True,
+                  'num_workers': cpu_cores}
+
+        params_e = {'batch_size': em_batch_size,
+                  'shuffle':True,
+                  'num_workers': cpu_cores}
+
+        n_snapshots = len(train_inds) + len(test_inds)
+
+        training_set = Dataset(train_inds, labels, data)
+        training_generator = torch_data.DataLoader(training_set, **params_t)
+
+        validation_set = Dataset(test_inds, labels, data)
+        validation_generator = torch_data.DataLoader(validation_set, **params_v)
+
+        em_set = Dataset(train_inds, labels, data)
+        em_generator = torch_data.DataLoader(em_set, **params_e)
+
+        return training_generator, validation_generator, em_generator
     
     def em_parallel(self, net, em_generator, train_inds, em_batch_size,
                     indicators, em_bounds, em_n_cores):
@@ -204,9 +200,9 @@ class Trainer:
             #sys.exit(1)
         return cur_labels.reshape((cur_labels.shape[0], 1))
 
-    def train(self, training_generator, validation_generator, em_generator,
+    def train(self, data, training_generator, validation_generator, em_generator,
               targets, indicators, train_inds, test_inds,net, label_str,
-              job, partition, lr_fact=1.0):
+              job, lr_fact=1.0):
         """Core method for training
 
         Parameters
@@ -326,7 +322,8 @@ class Trainer:
             if do_em and hasattr(nntype, "classify"):
                 print("    Doing EM")
                 targets = self.em_parallel(net, em_generator, train_inds, em_batch_size, indicators, em_bounds, em_n_cores)
-                training_generator, validation_generator, em_generator = set_training_data(job, partition, targets)
+                training_generator, validation_generator, em_generator = \
+                    self.set_training_data(job, train_inds, test_inds, targets, data)
 
             if epoch % epoch_output_freq == 0:
                 epoch_test_loss.append(test_loss)
@@ -397,7 +394,7 @@ class Trainer:
 
         return train_inds, test_inds
     
-    def run(self):
+    def run(self, data_in_mem=False):
         """Wrapper for running the training code
 
         """
@@ -417,14 +414,16 @@ class Trainer:
         n_snapshots = len(indicators)
 
         train_inds, test_inds = self.split_test_train(n_snapshots,frac_test)
+        if data_in_mem:
+            xtc_dir = os.path.join(data_dir,"aligned_xtcs")
+            top_fn = os.path.join(data_dir, "master.pdb")
+            master = md.load(top_fn)
+            data = utils.load_traj_coords_dir(xtc_dir, "*.xtc", master.top)
+        else:
+            data = os.path.join(data_dir, "data")
 
-        partition = {}
-        train_ID = ["ID-%s" % i for i in train_inds]
-        val_ID = ["ID-%s" % i for i in test_inds]
-        partition["train"] = train_ID
-        partition["validation"] = val_ID
-
-        training_generator, validation_generator, em_generator = set_training_data(job, partition, targets)
+        training_generator, validation_generator, em_generator = \
+            self.set_training_data(job, train_inds, test_inds, targets, data)
 
         print("  data generators created")
 
@@ -460,15 +459,16 @@ class Trainer:
                 net = nntype(layer_sizes[0:cur_layer+1],wm,uwm)
             net.freeze_weights(old_net)
             net.cuda()
-            net, targets = self.train(training_generator, validation_generator,
-                               em_generator, targets, indicators, train_inds,
-                               test_inds, net, str(cur_layer), job, partition)
+            net, targets = self.train(data, training_generator, 
+                               validation_generator, em_generator,
+                               targets, indicators, train_inds,
+                               test_inds, net, str(cur_layer), job)
             old_net = net
 
         #Polishing
         net.unfreeze_weights()
         net.cuda()
-        net, targets = self.train(training_generator, validation_generator,
+        net, targets = self.train(data, training_generator, validation_generator,
                                em_generator, targets, indicators, train_inds,
-                               test_inds, net, "polish", job, partition, lr_fact=0.1)
+                               test_inds, net, "polish", job, lr_fact=0.1)
         return net
