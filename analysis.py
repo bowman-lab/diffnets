@@ -96,7 +96,7 @@ class Analysis:
     def project_labels():
         pass 
 
-    def find_feats(self,inds,n_states=2000,num2plot=100):
+    def find_feats(self,inds,out_fn,n_states=2000,num2plot=100):
         """Generate a .pml file that will show the distances that change
         in a way that is most with changes in the classifications score.
 
@@ -106,6 +106,8 @@ class Analysis:
             Indices of the topology file that are to be included in 
             calculating what distances are most correlated with classification
             score.
+        out_fn : str
+            Name of the output file.
         n_states : int (default=2000)
             How many cluster centers to calculate and use for correlation
             measurement.
@@ -124,7 +126,7 @@ class Analysis:
         cluster_fn = os.path.join(cc_dir, "clusters.pkl")
         pickle.dump(clusters, open(cluster_fn, 'wb'))
         find_features(self.net,self.datadir,self.netdir,
-            clusters.center_indices,inds,num2plot=num2plot)
+            clusters.center_indices,inds,out_fn,num2plot=num2plot)
 
     def run_core(self):
         """Wrapper to run the analysis functions that should be 

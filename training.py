@@ -59,6 +59,23 @@ class Trainer:
         self.job = job
 
     def set_training_data(self, job, train_inds, test_inds, labels, data):
+        """Construct generators out of the dataset for training, validation,
+        and expectation maximization.
+
+        Parameters
+        ----------
+        job : dict
+            See training_dict.tx for all keys.
+        train_inds : np.ndarray
+            Indices in data that are to be trained on
+        test_inds : np.ndarray
+            Indices in data that are to be validated on
+        labels : np.ndarray,
+            classification labels used for training
+        data : np.ndarray, shape=(n_frames,3*n_atoms) OR str to path
+            All data
+        """
+
         batch_size = job['batch_size']
         cpu_cores = job['em_n_cores']
         test_batch_size = job['test_batch_size']
@@ -105,7 +122,7 @@ class Trainer:
         ----------
         net : nnutils neural network object
             Neural network 
-        data : np.ndarray, shape=(n_frames,3*n_atoms)
+        em_generator : Dataset object
             Training data
         train_inds : np.ndarray
             Indices in data that are to be trained on
@@ -207,8 +224,15 @@ class Trainer:
 
         Parameters
         ----------
-        data : np.ndarray, shape=(n_frames,3*n_atoms)
+        data : np.ndarray, shape=(n_frames,3*n_atoms) OR str to path
             Training data
+        training_generator: Dataset object
+            Generator to sample training data
+        validation_generator: Dataset object
+            Generator to sample validation data
+        em_generator: Dataset object
+            Generator to sample training data in batches for expectation
+            maximization
         targets : np.ndarray, shape=(len(data),)
             classification labels used for training
         indicators : np.ndarray, shape=(len(data),)
@@ -397,6 +421,15 @@ class Trainer:
     def run(self, data_in_mem=False):
         """Wrapper for running the training code
 
+        Parameters
+        ----------
+        data_in_mem: boolean
+            If true, load all training data into memory. Training faster this way.
+        
+        Returns
+        -------
+        net : nnutils neural network object
+            Trained DiffNet
         """
         job = self.job 
         data_dir = job['data_dir']

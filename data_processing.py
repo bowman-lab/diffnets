@@ -200,6 +200,9 @@ class ProcessTraj:
         np.save(cm_fn, cm)
 
     def traj2samples(self):
+        """For every trajectory frame, write out a PyTorch tensor file,
+        which will be used as input to the DiffNet"""
+
         traj_fns = get_fns(self.xtc_dir, "*.xtc")
         cm_fn = os.path.join(self.outdir, "cm.npy")
         cm = np.load(cm_fn)
