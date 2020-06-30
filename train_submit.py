@@ -7,7 +7,7 @@ from analysis import Analysis
 
 if __name__=='__main__':
     # Directory with processed/whitened data
-    data_dir = "/project/bowmore/mdward/projects/diffnets-code-testing/whitened_data"
+    data_dir = "/outdir/whitened_data/"
 
     n_cores = 14
     master_fn = os.path.join(data_dir, "master.pdb")
@@ -18,11 +18,16 @@ if __name__=='__main__':
     n_epochs = 3
     # map from variant index to whether active (1) or inactive (0)
     # for classification labels
+    # This should be in the order that variants were given to ProcessTraj
+    # in data_processing_submit.py
     act_map = np.array([0, 0, 1, 1], dtype=int) #v, wt, t, s
-    n_repeats = 2
+    n_repeats = 1
 
+    # Can choose to iterate over several "jobs" with different
+    # parameters to train the DiffNet
+    # See all required parameters in training_dict.txt
     jobs = []
-    for rep in range(1, n_repeats):
+    for rep in range(0, n_repeats):
         #lr = learning rate
         for lr in [0.0001]: #[0.001, 0.01, 0.1]:
             for n_latent in [50]:
@@ -83,6 +88,8 @@ if __name__=='__main__':
             job['inds1'], job['inds2'] = nnutils.split_inds(master,182,1)
 
         trainer = Trainer(job)
+        # If your entire dataset can be held in memory, set data_in_mem=True
+        # because the DiffNet will train much faster
         net = trainer.run(data_in_mem=False)
         print("network trained")
         net.cpu()
