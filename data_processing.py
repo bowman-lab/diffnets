@@ -210,7 +210,7 @@ class ProcessTraj:
         count = 0
         for t in traj_fns:
             traj = md.load(t,top=self.master)
-            data = traj.xyz((len(traj),3*self.master.top.n_atoms))
+            data = traj.xyz.reshape((len(traj),3*self.master.top.n_atoms))
             data -= cm
             for d in data:
                 frame = torch.from_numpy(d).type(torch.FloatTensor)
