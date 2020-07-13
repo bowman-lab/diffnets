@@ -207,7 +207,7 @@ class ProcessTraj:
         cm_fn = os.path.join(self.outdir, "cm.npy")
         cm = np.load(cm_fn)
         ex_dir = os.path.join(self.outdir,"data")
-        count = 0
+        i = 0
         for t in traj_fns:
             traj = md.load(t,top=self.master)
             data = traj.xyz.reshape((len(traj),3*self.master.top.n_atoms))
