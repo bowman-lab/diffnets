@@ -209,7 +209,7 @@ class Trainer:
             pos_inds = np.where(cur_labels>1)[0]
             bad_inds = neg_inds.tolist() + pos_inds.tolist()
             for iis in bad_inds:
-                print("      ", labels[iis], cur_labels[iis])
+                print("      ", indicators[iis], cur_labels[iis])
             print("      #bad neg, pos", len(neg_inds), len(pos_inds))
             #np.save("tmp.npy", tmp_labels)
             cur_labels[neg_inds] = 0.0
