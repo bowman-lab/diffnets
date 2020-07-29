@@ -246,6 +246,8 @@ class ae(nn.Module):
         super(ae, self).__init__()
         self.sizes = layer_sizes
         self.n = len(self.sizes)
+        self.wm = wm
+        self.uwm = uwm
 
         self.encoder = nn.ModuleList()
         for i in range(self.n-1):
@@ -279,9 +281,9 @@ class ae(nn.Module):
         if old_net:
             n_old = len(old_net.encoder)
             for i in range(1,n_old):
-                net.encoder[i].weight.data = old_net.encoder[i].weight.data
-                net.encoder[i].bias.data = old_net.encoder[i].bias.data
-                for p in net.encoder[i].parameters():
+                self.encoder[i].weight.data = old_net.encoder[i].weight.data
+                self.encoder[i].bias.data = old_net.encoder[i].bias.data
+                for p in self.encoder[i].parameters():
                     p.requires_grad = False
 
     def unfreeze_weights(self):
