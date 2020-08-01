@@ -1,5 +1,6 @@
 import mdtraj as md
 import numpy as np
+import itertools
 import utils
 import multiprocessing as mp
 import os
@@ -118,8 +119,9 @@ class Analysis:
         utils.mkdir(cc_dir)
 
         enc = utils.load_npy_dir(os.path.join(self.netdir, "encodings"), "*npy")
-        x = self.net.encoder1[-1].out_features
-        enc = enc[:,:x]
+        if hasattr(self.net,"split_inds"):
+            x = self.net.encoder1[-1].out_features
+            enc = enc[:,:x]
 
         clusters = cluster.hybrid.hybrid(enc, euc_dist,
                                          n_clusters=n_states, n_iters=1)
@@ -338,13 +340,16 @@ def find_features(net,data_dir,nn_dir,clust_cents,inds,out_fn,num2plot=100):
         corr_slopes.append(slopes[i])
         #print(slopes[i],r2_values[i],i)
         j,k = np.array(all_pairs)[i,:]
-        #print(j,k)
+        jnum = top.top.atom(j).residue.resSeq
+        jname = top.top.atom(j).name
+        knum = top.top.atom(k).residue.resSeq
+        kname = top.top.atom(k).name
         if slopes[i] < 0:
-            f.write("distance dc%s, master and index %s, master and index %s\n" % (count,j,k))
+            f.write("distance dc%s, master and resi %s and name %s, master and resi %s and name %s\n" % (count,jnum,jname,knum,kname))
             f.write("color red, dc%s\n" % count)
             f.write("hide label\n")
         else:
-            f.write("distance df%s, master and index %s, master and index %s\n" % (count,j,k))
+            f.write("distance df%s, master and resi %s and name %s, master and resi %s and name %s\n" % (count,jnum,jname,knum,kname))
             f.write("color blue, df%s\n" % count)
             f.write("hide label\n")
         count+=1
