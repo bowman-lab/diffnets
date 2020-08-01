@@ -114,7 +114,7 @@ class Analysis:
         num2plot : int (default=100)
             Number of distances to be shown.
         """
-        cc_dir = os.path.join(self.netdir, "cluster_%" % n_states)
+        cc_dir = os.path.join(self.netdir, "cluster_%d" % n_states)
         utils.mkdir(cc_dir)
 
         enc = utils.load_npy_dir(os.path.join(self.netdir, "encodings"), "*npy")
