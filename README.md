@@ -25,7 +25,7 @@ M.D. Ward, M.I. Zimmerman, S. Swamidass, G.R. Bowman. DiffNets: Self-supervised 
 
 ## Recommended Installation
 
--go to directory you would like diffnets (and enspara) to live in
+*Go to directory you would like diffnets (and enspara) to live in*
 
 cd /desired/path/for/packages
 
@@ -33,7 +33,7 @@ cd /desired/path/for/packages
 
 conda create --name diffnets python=3.6
 
--Enter this conda environment and install enspara
+*Enter this conda environment and install enspara*
 
 conda activate diffnets
 
@@ -51,7 +51,7 @@ cd enspara
 
 pip install -e .
 
--Check that enspara was installed successfully
+*Check that enspara was installed successfully*
 
 cd /any/random/directory
 
@@ -59,30 +59,30 @@ python
 
 import enspara
 
--Great! Now you have enspara installed, which is a dependency of diffnets but is also great on it's own for clustering and building MSMs.
+*Great! Now you have enspara installed, which is a dependency of diffnets but is also great on it's own for clustering and building MSMs.*
 
--Return to /desired/path/for/packages and download diffnets
+*Return to /desired/path/for/packages and download diffnets*
 
 cd /desired/path/for/packages
 
 git clone https://github.com/bowman-lab/diffnets
 
--Install pytorch
+*Install pytorch*
 
--If you are installing on a mac or CPU only machine use this command. Note: Training on a cpu has not yet been tested and is not recommended
+*If you are installing on a mac or CPU only machine use this command. Note: Training on a cpu has not yet been tested and is not recommended*
 
 conda install pytorch torchvision -c pytorch
--If you are installing on a cuda enabled GPU you will need cuda installed. Recommended to use cuda 10.1
+*If you are installing on a cuda enabled GPU you will need cuda installed. Recommended to use cuda 10.1*
 
 conda install pytorch torchvision cudatoolkit=10.1 -c pytorch
 
--Install diffnets
+*Install diffnets*
 
 cd diffnets
 
 pip install -e .
 
--Check that diffnets was installed successfully
+*Check that diffnets was installed successfully*
 
 cd /any/random/directory
 
@@ -90,7 +90,7 @@ python
 
 import diffnets
 
--You now have diffnets installed. When using diffnets, remember to be in the proper conda environment! For example, run this before using diffnets
+*You now have diffnets installed. When using diffnets, remember to be in the proper conda environment! For example, run this before using diffnets*
 
 conda activate diffnets
 
