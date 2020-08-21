@@ -72,6 +72,7 @@ git clone https://github.com/bowman-lab/diffnets
 *If you are installing on a mac or CPU only machine use this command. Note: Training on a cpu has not yet been tested and is not recommended*
 
 conda install pytorch torchvision -c pytorch
+
 *If you are installing on a cuda enabled GPU you will need cuda installed. Recommended to use cuda 10.1*
 
 conda install pytorch torchvision cudatoolkit=10.1 -c pytorch
