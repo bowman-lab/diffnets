@@ -29,7 +29,7 @@ M.D. Ward, M.I. Zimmerman, S. Swamidass, G.R. Bowman. DiffNets: Self-supervised 
 
 cd /desired/path/for/packages
 
--Create a conda environment that will be used for diffnets
+*Create a conda environment that will be used for diffnets*
 
 conda create --name diffnets python=3.6
 
