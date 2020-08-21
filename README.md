@@ -102,12 +102,14 @@ Documentation and testing is in its infancy stages and will be continually updat
 
 ## Brief tutorial
 
-The code is currently organized to be run in 2 separate chunks.
+The code is currently organized to be run in 3 separate chunks. Example scripts are in the 'scripts' dir.
 
 First, to process raw trajectories, fill in data_processing_submit.py to match your project directory structure. This will align all trajectories and whiten the data so it is prepared to be input for the DiffNet. This code should be run on a CPU node.
 
-Next, fill in train_submit.py with your desired training parameters. You can see all training parameters in training_dict.txt. When submitting train_submit.py, use a CUDA compatible GPU node. train_submit.py will also automate some analysis including reconstructiong all trajectories using the autoencoder, calculating an RMSD between autoencoder reconstructed structures and their respective simulation frame, calculating classification labels for all frames, and calculating the latent vector for all frames. For other analysis, please peruse analysis.py. You may find analysis.Analysis.find_feats particularly useful.
-"../../DiffNets/README.md" 27L, 1688C
+Next, fill in train_submit.py with your desired training parameters. You can see all training parameters in training_dict.txt. When submitting train_submit.py, use a CUDA compatible GPU node. 
+
+Finally, fill in analysis_submit.py to automate some analysis including reconstructiong all trajectories using the autoencoder, calculating an RMSD between autoencoder reconstructed structures and their respective simulation frame, calculating classification labels for all frames, and calculating the latent vector for all frames. Additionally, this script is setup to generate a figure like Figure 6 in the paper.
+
 
 ### Copyright
 
