@@ -1,4 +1,4 @@
-from data_processing import ProcessTraj, WhitenTraj
+from .data_processing import ProcessTraj, WhitenTraj
 import os
 
 #Base path to trajectory and topology data

@@ -4,12 +4,9 @@ import sys
 import multiprocessing as mp
 import mdtraj as md
 import numpy as np
-import exmax
+from . import exmax, nnutils, utils, data_processing
 import copy
-import nnutils
-import utils
 import pickle
-import data_processing
 
 import torch
 import torch.nn as nn

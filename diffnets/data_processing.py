@@ -2,7 +2,7 @@ import os
 import multiprocessing as mp
 import functools
 import glob
-from utils import *
+from .utils import *
 
 import numpy as np
 import mdtraj as md

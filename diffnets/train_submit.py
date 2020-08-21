@@ -1,9 +1,9 @@
 import numpy as np
 import mdtraj as md
-import nnutils
+from . import nnutils
 import os
-from training import Trainer
-from analysis import Analysis
+from .training import Trainer
+from .analysis import Analysis
 
 if __name__=='__main__':
     # Directory with processed/whitened data

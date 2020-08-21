@@ -1,7 +1,7 @@
 import mdtraj as md
 import numpy as np
 import itertools
-import utils
+from . import utils
 import multiprocessing as mp
 import os
 import functools
