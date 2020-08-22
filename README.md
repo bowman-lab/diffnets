@@ -69,7 +69,7 @@ git clone https://github.com/bowman-lab/diffnets
 
 *Install pytorch*
 
-*If you are installing on a mac or CPU only machine use this command. Note: Training on a cpu has not yet been tested and is not recommended*
+*If you are installing on a mac or CPU only machine use this command. Note: Trainingis much slower on CPUs
 
 conda install pytorch torchvision -c pytorch
 

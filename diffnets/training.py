@@ -293,7 +293,10 @@ class Trainer:
             running_loss = 0
             i = 0
             for local_batch, local_labels, _ in training_generator:
-                local_labels = Variable(local_labels.type(torch.cuda.FloatTensor))
+                if use_cuda:
+                    local_labels = local_labels.type(torch.cuda.FloatTensor)
+                else:
+                    local_labels = local_labels.type(torch.FloatTensor)
                 local_batch, local_labels = local_batch.to(device), local_labels.to(device)
 
                 optimizer.zero_grad()    
@@ -302,22 +305,31 @@ class Trainer:
                 loss += nnutils.my_l1(local_batch, x_pred)
                 if class_pred is not None:
                     loss += bce(class_pred, local_labels).mul_(lam_cls)
-
                 #Minimize correlation between latent variables
                 n_feat = net.sizes[-1]
                 my_c00 = torch.einsum('bi,bo->io', (latent, latent)).mul(1.0/local_batch.shape[0])
                 my_mean = torch.mean(latent, 0)
                 my_mean = torch.einsum('i,o->io', (my_mean, my_mean))
-                ide = Variable(torch.from_numpy(np.identity(n_feat)).type(torch.cuda.FloatTensor))
+                ide = np.identity(n_feat)
+                if use_cuda:
+                    ide = torch.from_numpy(ide).type(torch.cuda.FloatTensor)
+                else:
+                    ide = torch.from_numpy(ide).type(torch.FloatTensor)
+                #ide = Variable(ide)
+                #ide = torch.from_numpy(np.identity(n_feat))
+                #ide = ide.to(device)
                 zero_inds = np.where(1-ide.cpu().numpy()>0)
                 corr_penalty = nnutils.my_mse(ide[zero_inds], my_c00[zero_inds]-my_mean[zero_inds])
                 loss += corr_penalty
-
                 loss.backward()
                 optimizer.step()
                 running_loss += loss.item()
 
                 if i%batch_output_freq == 0:
+                    print("my_l1", nnutils.my_l1(local_batch, x_pred))
+                    print("corr penalty",corr_penalty)
+                    print("classify", bce(class_pred, local_labels).mul_(lam_cls))
+                    print("my_mse", nnutils.my_mse(local_batch, x_pred))
                     train_loss = running_loss
                     if i != 0:
                         train_loss /= batch_output_freq
@@ -358,7 +370,8 @@ class Trainer:
                 net.cpu()
                 out_fn = os.path.join(outdir, "nn_%s_e%d.pkl" % (label_str, epoch))
                 pickle.dump(net, open(out_fn, 'wb'))
-                net.cuda()
+                if use_cuda:
+                    net.cuda()
                 if do_em and hasattr(nntype, "classify"):
                     out_fn = os.path.join(outdir, "tmp_targets.npy")
                     np.save(out_fn, targets)
@@ -367,7 +380,8 @@ class Trainer:
             best_nn.cpu()
             out_fn = os.path.join(outdir, "nn_best_%s.pkl" % label_str)
             pickle.dump(best_nn, open(out_fn, 'wb'))
-            best_nn.cuda()
+            if use_cuda:
+                best_nn.cuda()
         return best_nn, targets    
 
     def get_targets(self,act_map,indicators):
@@ -437,6 +451,9 @@ class Trainer:
         frac_test = job['frac_test']
         act_map = job['act_map']
 
+        use_cuda = torch.cuda.is_available()
+        print("Using cuda? %s" % use_cuda)
+
         indicator_dir = os.path.join(data_dir, "indicators")
         indicators = utils.load_npy_dir(indicator_dir, "*.npy")
         indicators = np.array(indicators, dtype=int)
@@ -488,7 +505,8 @@ class Trainer:
             else:
                 net = nntype(layer_sizes[0:cur_layer+1],wm,uwm)
             net.freeze_weights(old_net)
-            net.cuda()
+            if use_cuda:
+                net.cuda()
             net, targets = self.train(data, training_generator, 
                                validation_generator, em_generator,
                                targets, indicators, train_inds,
@@ -497,7 +515,8 @@ class Trainer:
 
         #Polishing
         net.unfreeze_weights()
-        net.cuda()
+        if use_cuda:
+            net.cuda()
         net, targets = self.train(data, training_generator, validation_generator,
                                em_generator, targets, indicators, train_inds,
                                test_inds, net, "polish", job, lr_fact=0.1)
