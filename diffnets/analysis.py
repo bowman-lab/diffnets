@@ -97,14 +97,14 @@ class Analysis:
     def project_labels():
         pass 
 
-    def find_feats(self,inds,out_fn,n_states=2000,num2plot=100):
+    def find_feats(self,inds,out_fn,n_states=2000,num2plot=100,clusters=None):
         """Generate a .pml file that will show the distances that change
         in a way that is most with changes in the classifications score.
 
         Parameters
         ----------
         inds : np.ndarray,
-            Indices of the topology file that are to be included in 
+            Indices of the topology file that are to be included in
             calculating what distances are most correlated with classification
             score.
         out_fn : str
@@ -114,19 +114,22 @@ class Analysis:
             measurement.
         num2plot : int (default=100)
             Number of distances to be shown.
+        clusters : enspara cluster object
+            Cluster object with center_indices attribute
         """
-        cc_dir = os.path.join(self.netdir, "cluster_%d" % n_states)
-        utils.mkdir(cc_dir)
+        if not clusters:
+            cc_dir = os.path.join(self.netdir, "cluster_%d" % n_states)
+            utils.mkdir(cc_dir)
 
-        enc = utils.load_npy_dir(os.path.join(self.netdir, "encodings"), "*npy")
-        if hasattr(self.net,"split_inds"):
-            x = self.net.encoder1[-1].out_features
-            enc = enc[:,:x]
-
-        clusters = cluster.hybrid.hybrid(enc, euc_dist,
+            enc = utils.load_npy_dir(os.path.join(self.netdir, "encodings"), "*npy")
+            if hasattr(self.net,"split_inds"):
+                x = self.net.encoder1[-1].out_features
+                enc = enc[:,:x]
+            clusters = cluster.hybrid.hybrid(enc, euc_dist,
                                          n_clusters=n_states, n_iters=1)
-        cluster_fn = os.path.join(cc_dir, "clusters.pkl")
-        pickle.dump(clusters, open(cluster_fn, 'wb'))
+            cluster_fn = os.path.join(cc_dir, "clusters.pkl")
+            pickle.dump(clusters, open(cluster_fn, 'wb'))
+
         find_features(self.net,self.datadir,self.netdir,
             clusters.center_indices,inds,out_fn,num2plot=num2plot)
 
