@@ -202,11 +202,11 @@ def train(config):
                  '(close_inds_fn), but  a split autoencoder architecture '
                  'was not chosen (nntype)')
 
-    if os.path.exists(job['outdir']):
-        raise ImproperlyConfigured(
-                f'outdir already exists. Rename and try again. ')
-    cmd = "mkdir %s" % job['outdir']
-    os.system(cmd)
+    if not os.path.exists(job['outdir']):
+        #raise ImproperlyConfigured(
+        #        f'outdir already exists. Rename and try again. ')
+        cmd = "mkdir %s" % job['outdir']
+        os.system(cmd)
 
     trainer = Trainer(job)
     net = trainer.run(data_in_mem=job['data_in_mem'])
@@ -263,7 +263,7 @@ def analyze(data_dir,net_dir,inds=None,cluster_number=1000,n_distances=100):
     #Indices for feature analysis
     if inds is None:
         inds = np.arange(n)
-    a.find_feats(inds,"rescorr-100.pml",n_states=cluster_number,
+    a.find_feats(inds,"rescorr-%s.pml" % n_distances,n_states=cluster_number,
                  num2plot=n_distances)
 
     #Generate a morph of structures along the DiffNets classification score
