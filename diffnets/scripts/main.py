@@ -2,13 +2,17 @@
 import pickle
 import os
 import click
+import yaml
+import multiprocessing as mp
 #third-party libraries
 import numpy as np
 import mdtraj as md
 #diffnets libraries
 from diffnets.analysis import Analysis
 from diffnets.data_processing import ProcessTraj, WhitenTraj
+from diffnets.training import Trainer
 from diffnets.utils import get_fns
+from diffnets import nnutils
 
 class ImproperlyConfigured(Exception):
     '''The given configuration is incomplete or otherwise not usable.'''
@@ -94,20 +98,118 @@ def preprocess_data(sim_dirs,pdb_fns,atom_sel,outdir,stride=1):
     print("starting trajectory whitening")
     whiten_traj.run()
     
-#Need a yml file with training parameters
+nn_d = {
+    'nnutils.split_sae': nnutils.split_sae,
+    'nnutils.sae': nnutils.sae,
+    'nnutils.ae': nnutils.ae,
+    'nnutils.split_ae': nnutils.split_ae
+}
 
-#Need path to processed/whitened data dir
-
-#Need path for output directory
 @cli.command(name='train')
-def train():
-    pass
+@click.argument('config')
+def train(config):
+    """ config: YML config file. See train_sample.yml for an example and
+                train_sample.txt for parameter descriptions.
+    """
+    with open(config) as f:
+        job = yaml.load(f)
+ 
+    required_keys = ['data_dir','n_epochs','act_map','lr','n_latent',
+                     'hidden_layer_sizes','em_bounds','do_em','em_batch_size',
+                     'nntype','batch_size','batch_output_freq',
+                     'epoch_output_freq','test_batch_size','frac_test',
+                     'subsample','outdir','data_in_mem']
 
-#Need path to processed/whitened data directory
+    if hasattr(job['nntype'], 'split_inds'):
+        required_keys.append("close_inds_fn")
 
-#Need path to DiffNets training output directory
+    for key in job.keys():
+        required_keys.remove(key)
+    if len(required_keys) != 0:
+        raise ImproperlyConfigured(
+                f'Missing the following parameters in {config} '
+                 '{required_keys} ')
+   
+    data_dir  = job['data_dir']
+    data_fns = get_fns(data_dir,"*.npy")
+    wm_fn = os.path.join(data_dir,"wm.npy")
+    if wm_fn not in data_fns:
+        raise ImproperlyConfigured(
+                f'Cannot find wm.npy in preprocessed data directory. Likely '
+                 'need to re-run data preprocessing step.')
 
-#Optional parameter to do "find_feats" on a subset of the protein
+    xtc_fns = os.path.join(data_dir,"aligned_xtcs")
+    data_fns = get_fns(xtc_fns,"*.xtc")
+    ind_fns = os.path.join(data_dir,"indicators")
+    inds = get_fns(ind_fns,"*.npy")
+    if (len(inds) != len(data_fns)) or len(inds)==0:
+        raise ImproperlyConfigured(
+                f'Number of files in aligned_xtcs and indicators should be '
+                  'equal. Likely need to re-run data preprocessing step.')
+    last_indi = np.load(inds[-1])
+  
+    n_cores = mp.cpu_count()
+    master_fn = os.path.join(job['data_dir'], "master.pdb")
+    master = md.load(master_fn)
+    n_atoms = master.top.n_atoms
+    n_features = 3 * n_atoms
+    job['layer_sizes'] =[n_features,n_features]
+    for layer in job['hidden_layer_sizes']:
+        job['layer_sizes'].append(layer)
+    job['layer_sizes'].append(job['n_latent'])
+    job['act_map'] = np.array(job['act_map'],dtype=int)
+    job['em_bounds'] = np.array(job['em_bounds'])
+    job['em_n_cores'] = n_cores
+    job['nntype'] = nn_d[job['nntype']]
+       
+    if len(job['act_map']) != last_indi[0]+1:
+        raise ImproperlyConfigured(
+                f'act_map needs to contain a value for each variant.')
+
+    if len(job['act_map']) != len(job['em_bounds']):
+        raise ImproperlyConfigured(
+                f'act_map and em_bounds should be the same length since '
+                 'each variant needs an initial classification label and '
+                 'a range for the EM update')
+
+    if n_features != job['layer_sizes'][0]:
+        raise ImproperlyConfigured(
+                f'1st layer size does not match the number of xyz coordinates')  
+
+    if job['layer_sizes'][0]!=job['layer_sizes'][1]:
+        raise ImproperlyConfigured(
+                f'1st and 2nd layer size need to be equal.')
+  
+    if job['layer_sizes'][-1]!=job['n_latent']:
+        raise ImproperlyConfigured(
+                f'Last layer size needs to equal number of latent variables')
+
+    if 'close_inds_fn' in job.keys():
+        if hasattr(job['nntype'], 'split_inds'):
+            inds = np.load(job['close_inds_fn'])
+            close_xyz_inds = []
+            for i in inds:
+                close_xyz_inds.append(i*3)
+                close_xyz_inds.append((i*3)+1)
+                close_xyz_inds.append((i*3)+2)
+            all_inds = np.arange((pdb.n_atoms*3))
+            non_close_xyz_inds = np.setdiff1d(all_inds,close_xyz_inds)
+            job['inds1'] = np.array(close_xyz_inds)
+            job['inds2'] = non_close_xyz_inds
+        else:
+            raise ImproperlyConfigured(
+                f'Indices chosen for a split autoencoder architecture '
+                 '(close_inds_fn), but  a split autoencoder architecture '
+                 'was not chosen (nntype)')
+
+    if os.path.exists(job['outdir']):
+        raise ImproperlyConfigured(
+                f'outdir already exists. Rename and try again. ')
+    cmd = "mkdir %s" % job['outdir']
+    os.system(cmd)
+
+    trainer = Trainer(job)
+    net = trainer.run(data_in_mem=job['data_in_mem'])
 
 @cli.command(name='analyze')
 @click.argument('data_dir')

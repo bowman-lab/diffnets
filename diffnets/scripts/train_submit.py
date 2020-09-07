@@ -94,9 +94,9 @@ if __name__=='__main__':
         # because the DiffNet will train much faster
         net = trainer.run(data_in_mem=False)
         print("network trained")
-        net.cpu()
+        #net.cpu()
         
-        a = Analysis(net,outdir,data_dir)
-        a.run_core()
-        print("analysis done")
+        #a = Analysis(net,outdir,data_dir)
+        #a.run_core()
+        #print("analysis done")
 

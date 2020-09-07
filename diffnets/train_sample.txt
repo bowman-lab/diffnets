@@ -1,11 +1,4 @@
-###Dictionary keys for training a DiffNet.
-
-layer_sizes : list, shape=(n_layers,)
-    Specifies how many nodes in each encoder layer. First two values in
-    layer_sizes must be equivalent and equal to the number of features in
-    a training sample. Decoder will be a mirror image.
-
-do_em : boolean, 
+do_em : boolean,
     Option to use the self-supervised expectation maximization scheme.
 
 em_bounds : np.ndarray, shape=(n_variants,2)
@@ -15,14 +8,12 @@ em_bounds : np.ndarray, shape=(n_variants,2)
     value in the "indicators" dir files.
 
 em_batch_size :  int
-   Number of examples that are have their classification labels updated in a 
-   single round of expectation maximization.
+   Number of examples that have their classification labels updated in a
+   single batch of expectation maximization.
 
-em_n_cores : int
-   CPU cores to use for expectation maximization calculation
-
-nntype : nnutils object
-    Object that specifies the neural net architecture to be used.
+nntype : str
+    Str that specifies the neural net object to be used.
+    nnutils.sae, nnutils.split_sae, nnutils.ae, nnutils.split_ae
 
 lr : float
     Learning rate.
@@ -44,13 +35,13 @@ data_dir : str
 act_map : np.ndarray, shape=(n_variants,)
     Initial classification labels to give each variant. The 0th index
     corresponds to all frames with "indicator" values of 0. The 1st index
-    corresponds to all frames with "indicator" values of 1 and so on. 
+    corresponds to all frames with "indicator" values of 1 and so on.
     e.g. if act_map=[0,0,1,1] then whatever xtc frames have indicator values
     of 0 or 1 will get classification labels of 0 and xtc frames with indicator
     values of 2 or 3 will get classification labels of 1.
 
 batch_size : int
-   Number of examples for neural network to look at between 
+   Number of examples for neural network to look at between
    each update of the weights.
 
 batch_output_freq : int
@@ -67,16 +58,17 @@ frac_test : float between 0 and 1
     instead of trained on.
 
 subsample : int
-   Subsample every nth data frame in a given epoch of training. Across all 
+   Subsample every nth data frame in a given epoch of training. Across all
    epochs it is still possible for the training to have seen every example.
 
 outdir : str
     Path to where all of the training output will go.
 
-inds1 : np.ndarray
-    Indices - relative to the entire input - that will go into the
-    classification task. ONLY USE WITH SPLIT AUTOENCODER ARCHITECTURES.
+hidden_layer_size: list
+    List where length of list indicates the number of desired hidden layers
+    and each value indicates the number of nodes in the hidden layer.
 
-inds2 : np.ndarray
-    Indices - relative to the entire input - that will NOT go into the
-    classification task. ONLY USE WITH SPLIT AUTOENCODER ARCHITECTURES.
+close_inds_fn: str
+    Path to np.array of atom indices (relative to master.pdb) that indicates
+    which atoms should go into the classification task. ONLY USE WITH SPLIT
+    AUTOENCODER ARCHITECTURES.
