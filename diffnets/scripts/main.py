@@ -120,12 +120,21 @@ def train(config):
                      'nntype','batch_size','batch_output_freq',
                      'epoch_output_freq','test_batch_size','frac_test',
                      'subsample','outdir','data_in_mem']
+    optional_keys = ["close_inds_fn","gaussian_labels"]
 
     if hasattr(job['nntype'], 'split_inds'):
         required_keys.append("close_inds_fn")
 
     for key in job.keys():
-        required_keys.remove(key)
+        try:
+            required_keys.remove(key)
+        except:
+            if key in optional_keys:
+                continue
+            else:
+                raise ImproperlyConfigured(
+                f'{key} is not a valid parameter. Check yaml file.')
+
     if len(required_keys) != 0:
         raise ImproperlyConfigured(
                 f'Missing the following parameters in {config} '
