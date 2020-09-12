@@ -19,3 +19,4 @@ subsample: 10
 outdir: 'sae_e10_lr0001_lat50_rep0_em'
 data_in_mem: False
 #close_inds_fn: close_inds.npy #Only necessary if using a split autoencoder. np.array of the atom indices that go into classification task. 
+#gaussian_labels: False #draw initial labels from a normal distribution

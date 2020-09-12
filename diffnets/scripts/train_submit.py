@@ -22,7 +22,7 @@ if __name__=='__main__':
     # for classification labels
     # This should be in the order that variants were given to ProcessTraj
     # in data_processing_submit.py
-    act_map = np.array([0, 0, 1, 1], dtype=int) #v, wt, t, s
+    act_map = np.array([0, 0, 1, 1], dtype=float) #v, wt, t, s
     n_repeats = 1
 
     # Can choose to iterate over several "jobs" with different

@@ -157,7 +157,7 @@ def train(config):
     for layer in job['hidden_layer_sizes']:
         job['layer_sizes'].append(layer)
     job['layer_sizes'].append(job['n_latent'])
-    job['act_map'] = np.array(job['act_map'],dtype=int)
+    job['act_map'] = np.array(job['act_map'],dtype=float)
     job['em_bounds'] = np.array(job['em_bounds'])
     job['em_n_cores'] = n_cores
     job['nntype'] = nn_d[job['nntype']]

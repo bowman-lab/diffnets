@@ -384,7 +384,7 @@ class Trainer:
                 best_nn.cuda()
         return best_nn, targets    
 
-    def get_targets(self,act_map,indicators):
+    def get_targets(self,act_map,indicators,gaussian=False):
         """Convert variant indicators into classification labels.
 
         Parameters
@@ -401,6 +401,12 @@ class Trainer:
         """
         targets = np.zeros((len(indicators), 1))
         targets[:, 0] = act_map[indicators]
+        if gaussian:
+            targets = np.array([np.random.normal(i,0.1) for i in targets])
+            zero_inds = np.where(targets < 0)[0]
+            targets[zero_inds] = 0
+            one_inds = np.where(targets > 1)[0]
+            targets[one_inds] = 1
         return targets
 
     def split_test_train(self,n,frac_test):
