@@ -5,7 +5,8 @@ n_epochs: 10
 act_map: [0,0,1,1]
 lr: 0.0001
 n_latent: 50
-hidden_layer_sizes: [1000]
+hidden_layer_sizes: [] #Leave blank array [] for default of 1 hidden layer
+                       #that has 4x less nodes than input.
 em_bounds: [[0.1,0.3],[0.1,0.3],[0.6,0.9],[0.6,0.9]]
 do_em: True
 em_batch_size: 150

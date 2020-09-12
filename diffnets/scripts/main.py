@@ -1,6 +1,7 @@
 #Native to python
 import pickle
 import os
+import shutil
 import click
 import yaml
 import multiprocessing as mp
@@ -154,8 +155,11 @@ def train(config):
     n_atoms = master.top.n_atoms
     n_features = 3 * n_atoms
     job['layer_sizes'] =[n_features,n_features]
-    for layer in job['hidden_layer_sizes']:
-        job['layer_sizes'].append(layer)
+    if len(job['hidden_layer_sizes']) == 0:
+        job['layer_sizes'].append(int(n_features/4))
+    else: 
+        for layer in job['hidden_layer_sizes']:
+            job['layer_sizes'].append(layer)
     job['layer_sizes'].append(job['n_latent'])
     job['act_map'] = np.array(job['act_map'],dtype=float)
     job['em_bounds'] = np.array(job['em_bounds'])
@@ -203,10 +207,11 @@ def train(config):
                  'was not chosen (nntype)')
 
     if not os.path.exists(job['outdir']):
-        #raise ImproperlyConfigured(
-        #        f'outdir already exists. Rename and try again. ')
         cmd = "mkdir %s" % job['outdir']
         os.system(cmd)
+        shutil.copyfile(config,os.path.join(job['outdir'],config))
+        #raise ImproperlyConfigured(
+        #        f'outdir already exists. Rename and try again. ')
 
     trainer = Trainer(job)
     net = trainer.run(data_in_mem=job['data_in_mem'])

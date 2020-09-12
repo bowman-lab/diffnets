@@ -68,6 +68,9 @@ hidden_layer_size: list
     List where length of list indicates the number of desired hidden layers
     and each value indicates the number of nodes in the hidden layer.
 
+gaussian_labels : boolean
+    Option to draw labels from a gaussian centered on values in act_map.
+
 close_inds_fn: str
     Path to np.array of atom indices (relative to master.pdb) that indicates
     which atoms should go into the classification task. ONLY USE WITH SPLIT
