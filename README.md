@@ -102,13 +102,31 @@ Documentation and testing is in its infancy stages and will be continually updat
 
 ## Brief tutorial
 
-The code is currently organized to be run in 3 separate chunks. Example scripts are in the 'scripts' dir.
 
-First, to process raw trajectories, fill in data_processing_submit.py to match your project directory structure. This will align all trajectories and whiten the data so it is prepared to be input for the DiffNet. This code should be run on a CPU node.
 
-Next, fill in train_submit.py with your desired training parameters. You can see all training parameters in training_dict.txt. When submitting train_submit.py, use a CUDA compatible GPU node. 
+The code is currently organized to be run in 3 separate chunks.Tutorial below is for using the command line interface. For more custom solutions, interface with the code directly (examples are in the 'scripts' dir. i.e. data_processing_submit.py, train_submit.py, and analysis_submit.py) 
 
-Finally, fill in analysis_submit.py to automate some analysis including reconstructiong all trajectories using the autoencoder, calculating an RMSD between autoencoder reconstructed structures and their respective simulation frame, calculating classification labels for all frames, and calculating the latent vector for all frames. Additionally, this script is setup to generate a figure like Figure 6 in the paper.
+The first step is to convert raw trajectories into diffnet input, which should be performed on a CPU node.
+
+python scripts/main.py process {sim_dirs} {pdb_fns} {outdir}
+
+where {sim_dirs} is a path to an np.array containing directory names. The array needs one directory name (string) for each variant where each directory contains all trajectories for that variant. {pdb_fns} is a path to an np.array containing pdb filenames. The array needs one pdb filename for each variant. The order of variants should match the order of {sim_dirs}. {outdir} is the path you would like processed data to live.
+
+You can optionally include -a {atom-sel}  where {atom-sel} is a path to an np.array containing a list of indices for each variant, which operates on the pdbs supplied. The indices need to select equivalent atoms across variants.
+
+Next, train a DiffNet with the folowing command:
+
+python scripts/main.py train config.yml
+
+where config.yml contains all the training parameters. Look at train_sample.yml as an example and train_sample.txt for descriptions of each parameter. Training on a GPU gives better performance than on a CPU.
+
+Finally, run some automated analyses with...
+
+python scripts/main.py analyze {data_dir} {net_dir}
+
+where {data_dir} is the path to the directory output by the earlier 'process' command, and {net_dir} is the path to the directory output by the earlier 'train' command.
+
+This analysis includes reconstructing all trajectories using the autoencoder, calculating an RMSD between autoencoder reconstructed structures and their respective simulation frame, calculating classification labels for all frames, and calculating the latent vector for all frames. Additionally, this script is setup to generate a .pml file in the {net_dir}. Loading {data_dir}/master.pdb into pymol followed by loading this .pml file will generate a figure like Figure 6 in the paper.
 
 
 ### Copyright
