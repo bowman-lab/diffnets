@@ -57,12 +57,11 @@ class ProcessTraj:
         self.xtc_dir = os.path.join(outdir, "aligned_xtcs")
         self.indicator_dir = os.path.join(outdir, "indicators")
         self.atom_sel = atom_sel
+        if self.atom_sel is None:
+            self.atom_sel = self.extract_default_inds()
         self.master = self.make_master_pdb()
         self.n_feats = 3*self.master.top.n_atoms
         self.stride = stride
-
-        if self.atom_sel is None:
-            self.atom_sel = self.extract_default_inds()
 
     def extract_default_inds(self):
        
@@ -72,8 +71,8 @@ class ProcessTraj:
            pdb =  md.load(fn)
            pdb_lens.append(pdb.top.n_residues)
            for res in pdb.top.residues:
-               if r.name == "GLY":
-                   glycines.append(r.index)
+               if res.name == "GLY":
+                   glycines.append(res.index)
        glycines = np.unique(glycines)
        
        if len(np.unique(pdb_lens)) != 1:
@@ -88,16 +87,15 @@ class ProcessTraj:
        for fn in self.pdb_fn_paths:
            pdb =  md.load(fn)
            for res in pdb.top.residues:
-               if r.index in glycines:
-                   sele = "resid %s and (name CA or name C or name N)" % r.index
+               if res.index in glycines:
+                   sele = "resid %s and (name CA or name C or name N)" % res.index
                    j = pdb.topology.select(sele)
                else:
-                   sele = "resid %s and (name CA or name C or name CB or name N)" % r.index
+                   sele = "resid %s and (name CA or name C or name CB or name N)" % res.index
                    j = pdb.topology.select(sele)
                var_inds[fn].append(j)
            var_inds_list.append(np.concatenate(var_inds[fn]))
-
-       return np.array(var_inds_list)
+       return var_inds_list
 
     def make_master_pdb(self):
         """Creates a reference pdb centered at the origin

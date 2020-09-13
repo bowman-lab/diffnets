@@ -61,6 +61,12 @@ def preprocess_data(sim_dirs,pdb_fns,outdir,atom_sel=None,stride=1):
     if atom_sel:
         try:
             atom_sel = np.load(atom_sel)
+            n_atoms = [md.load(fn).atom_slice(atom_sel[i]).n_atoms for i,fn in enumerate(var_pdb_fns)]
+            if len(np.unique(n_atoms)) != 1:
+                raise ImproperlyConfigured(
+                    f'atom_sel needs to choose equivalent atoms across variants. '
+                     'After performing atom_sel, pdbs have different numbers of '
+                     'atoms.')
         except:
             click.echo(f'Incorrect input for atom_sel. Use --help flag for '
                'information on the correct input for atom_sel.')
@@ -84,13 +90,6 @@ def preprocess_data(sim_dirs,pdb_fns,outdir,atom_sel=None,stride=1):
             click.echo(f'Order of pdb_fns and sim_dirs need to '
                 'correspond to each other.')
             raise
-
-    n_atoms = [md.load(fn).atom_slice(atom_sel[i]).n_atoms for i,fn in enumerate(var_pdb_fns)]
-    if len(np.unique(n_atoms)) != 1:
-        raise ImproperlyConfigured(
-                f'atom_sel needs to choose equivalent atoms across variants. '
-                 'After performing atom_sel, pdbs have different numbers of '
-                 'atoms.')
 
     proc_traj = ProcessTraj(var_dir_names,var_pdb_fns,outdir,stride=stride,
                             atom_sel=atom_sel)

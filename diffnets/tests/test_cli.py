@@ -10,7 +10,44 @@ CURR_DIR = os.getcwd()
 UP_DIR = CURR_DIR[:-len(CURR_DIR.split('/')[-1])]
 SCRIPTS_DIR = UP_DIR + 'scripts'
 
-def test_preprocess():
+def test_preprocess_default_inds():
+    curr_dir = os.getcwd()
+    try:
+        td = tempfile.mkdtemp(dir=curr_dir)
+        ftmp = tempfile.NamedTemporaryFile(delete=False)
+        traj_dirs_tmp = ftmp.name + ".npy"
+        inp = np.array([os.path.join(curr_dir,"data/traj1"),
+                    os.path.join(curr_dir,"data/traj2")])
+        np.save(traj_dirs_tmp, inp, allow_pickle=False)
+
+        ftmp2 = tempfile.NamedTemporaryFile(delete=False)
+        pdb_fns_tmp = ftmp2.name + ".npy"
+        inp = np.array([os.path.join(curr_dir,"data/beta-peptide1.pdb"),
+                    os.path.join(curr_dir,"data/beta-peptide2.pdb")])
+        np.save(pdb_fns_tmp, inp, allow_pickle=False)
+
+        subprocess.call(['python', SCRIPTS_DIR + "/main.py", "process",
+                        traj_dirs_tmp, pdb_fns_tmp, td])
+
+        assert os.path.exists(os.path.join(td,"wm.npy"))
+        assert os.path.exists(os.path.join(td,"uwm.npy"))
+        assert os.path.exists(os.path.join(td,"master.pdb"))
+        assert os.path.exists(os.path.join(td,"data"))
+
+        xtc_fns = os.path.join(td,"aligned_xtcs")
+        data_fns = get_fns(xtc_fns,"*.xtc")
+        ind_fns = os.path.join(td,"indicators")
+        inds = get_fns(ind_fns,"*.npy")
+
+        print(len(data_fns))
+        assert len(data_fns) == len(inds)
+
+    finally:
+        os.remove(traj_dirs_tmp)
+        os.remove(pdb_fns_tmp)
+        shutil.rmtree(td)
+
+def test_preprocess_custom_inds():
     curr_dir = os.getcwd()
     try:
         td = tempfile.mkdtemp(dir=curr_dir) 
@@ -22,8 +59,8 @@ def test_preprocess():
     
         ftmp2 = tempfile.NamedTemporaryFile(delete=False)
         pdb_fns_tmp = ftmp2.name + ".npy"
-        inp = np.array([os.path.join(curr_dir,"data/beta-peptide.pdb"),
-                    os.path.join(curr_dir,"data/beta-peptide.pdb")])
+        inp = np.array([os.path.join(curr_dir,"data/beta-peptide1.pdb"),
+                    os.path.join(curr_dir,"data/beta-peptide2.pdb")])
         np.save(pdb_fns_tmp, inp, allow_pickle=False) 
 
         ftmp3 = tempfile.NamedTemporaryFile(delete=False)
