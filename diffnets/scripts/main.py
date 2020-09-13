@@ -26,10 +26,10 @@ def cli():
 @cli.command(name='process')
 @click.argument('sim_dirs')
 @click.argument('pdb_fns')
-@click.argument('atom_sel')
 @click.argument('outdir')
-@click.option('--stride', default=1, help='Factor to subsample by.')
-def preprocess_data(sim_dirs,pdb_fns,atom_sel,outdir,stride=1):
+@click.option('-a','--atom-sel',default=None)
+@click.option('-s','--stride', default=1, help='Factor to subsample by.')
+def preprocess_data(sim_dirs,pdb_fns,outdir,atom_sel=None,stride=1):
     """ sim_dirs: Path to an np.array containing directory names. The 
                array needs one directory name for each variant where each
                directory contains all trajectories for that variant.
@@ -38,7 +38,7 @@ def preprocess_data(sim_dirs,pdb_fns,atom_sel,outdir,stride=1):
                array needs one pdb filename for each variant. The order of 
                variants should match the order of sim_dirs.
 
-        atom_sel: Path to an np.array containing a list of indices for 
+        atom_sel: (optional) Path to an np.array containing a list of indices for 
               each variant, which operates on the pdbs supplied. The indices
               need to select equivalent atoms across variants.
 
@@ -58,12 +58,13 @@ def preprocess_data(sim_dirs,pdb_fns,atom_sel,outdir,stride=1):
                'information on the correct input for pdb_fns.')
         raise
 
-    try:
-        atom_sel = np.load(atom_sel)
-    except:
-        click.echo(f'Incorrect input for atom_sel. Use --help flag for '
+    if atom_sel:
+        try:
+            atom_sel = np.load(atom_sel)
+        except:
+            click.echo(f'Incorrect input for atom_sel. Use --help flag for '
                'information on the correct input for atom_sel.')
-        raise
+            raise
 
     if len(var_dir_names) != len(var_pdb_fns):
         raise ImproperlyConfigured(

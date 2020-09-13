@@ -34,7 +34,8 @@ def test_preprocess():
         np.save(inds_fn_tmp, both_inds, allow_pickle=False)
 
         subprocess.call(['python', SCRIPTS_DIR + "/main.py", "process", 
-                        traj_dirs_tmp, pdb_fns_tmp, inds_fn_tmp, td])
+                        traj_dirs_tmp, pdb_fns_tmp, td,
+                        "-a" + inds_fn_tmp])
 
         assert os.path.exists(os.path.join(td,"wm.npy"))
         assert os.path.exists(os.path.join(td,"uwm.npy")) 

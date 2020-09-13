@@ -4,11 +4,16 @@ import functools
 import glob
 from .utils import *
 import pickle
+from collections import defaultdict
 
 import numpy as np
 import mdtraj as md
 from scipy.linalg import inv, sqrtm
 import torch
+
+class ImproperlyConfigured(Exception):
+    '''The given configuration is incomplete or otherwise not usable.'''
+    pass
 
 class ProcessTraj:
     """Process raw trajectory data to select a subset of atoms and align all
@@ -43,7 +48,7 @@ class ProcessTraj:
                  traj_dir_paths,
                  pdb_fn_paths,
                  outdir,
-                 atom_sel="name CA or name CB or name N or name C",
+                 atom_sel=None,
                  stride=1):
                  #gly_mut_ind = []):
         self.traj_dir_paths = traj_dir_paths
@@ -55,6 +60,44 @@ class ProcessTraj:
         self.master = self.make_master_pdb()
         self.n_feats = 3*self.master.top.n_atoms
         self.stride = stride
+
+        if self.atom_sel is None:
+            self.atom_sel = self.extract_default_inds()
+
+    def extract_default_inds(self):
+       
+       pdb_lens = []
+       glycines = [] 
+       for fn in self.pdb_fn_paths:
+           pdb =  md.load(fn)
+           pdb_lens.append(pdb.top.n_residues)
+           for res in pdb.top.residues:
+               if r.name == "GLY":
+                   glycines.append(r.index)
+       glycines = np.unique(glycines)
+       
+       if len(np.unique(pdb_lens)) != 1:
+            raise ImproperlyConfigured(
+                f'Cannot use default index extraction unless all variant '
+                 'pdbs have the same number of residues. Consider supplying '
+                 'a custom atom_sel to choose equivalent atoms across different '
+                 'variant pdbs.')
+
+       var_inds = defaultdict(list)
+       var_inds_list = []
+       for fn in self.pdb_fn_paths:
+           pdb =  md.load(fn)
+           for res in pdb.top.residues:
+               if r.index in glycines:
+                   sele = "resid %s and (name CA or name C or name N)" % r.index
+                   j = pdb.topology.select(sele)
+               else:
+                   sele = "resid %s and (name CA or name C or name CB or name N)" % r.index
+                   j = pdb.topology.select(sele)
+               var_inds[fn].append(j)
+           var_inds_list.append(np.concatenate(var_inds[fn]))
+
+       return np.array(var_inds_list)
 
     def make_master_pdb(self):
         """Creates a reference pdb centered at the origin
