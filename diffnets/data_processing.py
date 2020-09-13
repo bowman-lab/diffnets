@@ -3,6 +3,7 @@ import multiprocessing as mp
 import functools
 import glob
 from .utils import *
+import pickle
 
 import numpy as np
 import mdtraj as md
@@ -86,14 +87,16 @@ class ProcessTraj:
         i = 0
         var_dirs = self.traj_dir_paths
         pdb_fns = self.pdb_fn_paths
+        traj_d = {}
         for vd, fn in zip(var_dirs,pdb_fns):
             traj_fns = get_fns(vd, "*.xtc")
+            traj_d[fn] = [traj_num, traj_num+len(traj_fns)] 
             for traj_fn in traj_fns:
             #i indicates which variant the traj came from -- used for training
                 inputs.append((traj_fn, fn, traj_num, i))
                 traj_num += 1
             i += 1
-        return inputs
+        return inputs, traj_d
 
     def _preprocess_traj(self,inputs):
         """Given inputs - a path to a trajectory, corresponding topology file,
@@ -222,7 +225,9 @@ class ProcessTraj:
        frames to a reference pdb. Results in a directory structure that the
        training relies on.
        """
-        inputs = self.make_traj_list()
+        inputs, traj_d = self.make_traj_list()
+        traj_d_path = os.path.join(self.outdir,"traj_dict.pkl")
+        pickle.dump(traj_d, open(traj_d_path, "wb" )) 
         mkdir(self.xtc_dir)
         mkdir(self.indicator_dir)
         mkdir(os.path.join(self.outdir,"data"))

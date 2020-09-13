@@ -94,8 +94,55 @@ class Analysis:
         """
         morph_label(self.net,self.netdir,self.datadir,n_frames=n_frames)
 
-    def project_labels():
-        pass 
+    def assign_labels_to_variants(self,plot_labels=False):
+        """Map DiffNet labels to each variant with option to plot
+           a histogram of the labels.
+
+        Parameters
+        ----------
+        plot_labels : optional, boolean
+            Save a matplotlob figure of the label histogram.
+
+        Returns
+        -------
+        lab_v : dictionary
+            Dictionary mapping labels to their respective variants.
+        """
+
+        lab_fns = utils.get_fns(os.path.join(self.netdir,"labels"),"*.npy")
+        traj_d_path = os.path.join(self.datadir,"traj_dict.pkl")
+        traj_d = pickle.load(open(traj_d_path, 'rb')) 
+        lab_v = defaultdict(list)
+        for key,item in traj_d.items():
+            for traj_ind in range(item[0],item[1]):
+                lab = np.load(lab_fns[traj_ind])
+                lab_v[key].append(lab) 
+
+        if plot_labels:
+            plt.figure(figsize=(16,16))
+            axes = plt.gca()
+            lw = 8
+
+            for k in traj_d.keys():
+                t = np.concatenate(lab_v[k])
+                n, x = np.histogram(t, range=(0, 1), bins=50)
+                plt.plot(x[:-1],n,label=k,linewidth=lw)
+
+
+            plt.xticks(fontsize=36)
+            plt.yticks(fontsize=36)
+            axes.set_xlabel('DiffNet Label',labelpad=40, fontsize=36)
+            axes.set_ylabel('# of Simulation Frames',labelpad=40,fontsize=36)
+            axes.tick_params(direction='out', length=20, width=5,
+                           grid_color='r', grid_alpha=0.5)
+            plt.legend(fontsize=36)
+
+            for axis in ['top','bottom','left','right']:
+                axes.spines[axis].set_linewidth(5)
+
+            plt.savefig(os.path.join(self.netdir,"label_plot.png"))
+
+        return lab_v
 
     def find_feats(self,inds,out_fn,n_states=2000,num2plot=100,clusters=None):
         """Generate a .pml file that will show the distances that change
