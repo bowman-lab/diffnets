@@ -68,8 +68,10 @@ hidden_layer_size: list
     List where length of list indicates the number of desired hidden layers
     and each value indicates the number of nodes in the hidden layer.
 
-gaussian_labels : boolean
-    Option to draw labels from a gaussian centered on values in act_map.
+label_spreading  : 'gaussian' or 'uniform'
+    Option to draw labels from a gaussian centered on values in act_map,
+    or uniformly from 0 to 1 for all variants (i.e. make the EM bounds do
+    all the work of distinguishing variants)
 
 close_inds_fn: str
     Path to np.array of atom indices (relative to master.pdb) that indicates

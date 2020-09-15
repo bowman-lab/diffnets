@@ -326,10 +326,6 @@ class Trainer:
                 running_loss += loss.item()
 
                 if i%batch_output_freq == 0:
-                    print("my_l1", nnutils.my_l1(local_batch, x_pred))
-                    print("corr penalty",corr_penalty)
-                    print("classify", bce(class_pred, local_labels).mul_(lam_cls))
-                    print("my_mse", nnutils.my_mse(local_batch, x_pred))
                     train_loss = running_loss
                     if i != 0:
                         train_loss /= batch_output_freq
@@ -359,6 +355,10 @@ class Trainer:
                     self.set_training_data(job, train_inds, test_inds, targets, data)
 
             if epoch % epoch_output_freq == 0:
+                print("my_l1", nnutils.my_l1(local_batch, x_pred))
+                print("corr penalty",corr_penalty)
+                print("classify", bce(class_pred, local_labels).mul_(lam_cls))
+                print("my_mse", nnutils.my_mse(local_batch, x_pred))
                 epoch_test_loss.append(test_loss)
                 out_fn = os.path.join(outdir, "epoch_test_loss_%s.npy" % label_str)
                 np.save(out_fn, epoch_test_loss)
@@ -384,7 +384,7 @@ class Trainer:
                 best_nn.cuda()
         return best_nn, targets    
 
-    def get_targets(self,act_map,indicators,gaussian=False):
+    def get_targets(self,act_map,indicators,label_spread=None):
         """Convert variant indicators into classification labels.
 
         Parameters
@@ -400,13 +400,15 @@ class Trainer:
             Classification labels for training.
         """
         targets = np.zeros((len(indicators), 1))
-        targets[:, 0] = act_map[indicators]
-        if gaussian:
+        print(targets.shape)
+        if label_spread == 'gaussian':
             targets = np.array([np.random.normal(i,0.1) for i in targets])
             zero_inds = np.where(targets < 0)[0]
             targets[zero_inds] = 0
             one_inds = np.where(targets > 1)[0]
             targets[one_inds] = 1
+        elif label_spread == 'uniform':
+            targets = np.array([np.random.uniform() for i in targets])
         return targets
 
     def split_test_train(self,n,frac_test):
@@ -463,7 +465,12 @@ class Trainer:
         indicator_dir = os.path.join(data_dir, "indicators")
         indicators = utils.load_npy_dir(indicator_dir, "*.npy")
         indicators = np.array(indicators, dtype=int)
-        targets = self.get_targets(act_map,indicators)
+        
+        if 'label_spreading' in job.keys():
+            targets = self.get_targets(act_map,indicators,
+                                       label_spread=job['label_spreading'])
+        else:
+            targets = self.get_targets(act_map,indicators)
         n_snapshots = len(indicators)
 
         train_inds, test_inds = self.split_test_train(n_snapshots,frac_test)

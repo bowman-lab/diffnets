@@ -73,8 +73,10 @@ subsample : int
 outdir : str
     Path to where all of the training output will go.
 
-gaussian_labels : boolean
-    Option to draw labels from a gaussian centered on values in act_map.
+label_spreading : 'gaussian' or 'uniform'
+    Option to draw labels from a gaussian centered on values in act_map,
+    or uniformly from 0 to 1 for all variants (i.e. make the EM bounds do
+    all the work of distinguishing variants)
 
 inds1 : np.ndarray
     Indices - relative to the entire input - that will go into the

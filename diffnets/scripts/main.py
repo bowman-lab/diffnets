@@ -120,10 +120,15 @@ def train(config):
                      'nntype','batch_size','batch_output_freq',
                      'epoch_output_freq','test_batch_size','frac_test',
                      'subsample','outdir','data_in_mem']
-    optional_keys = ["close_inds_fn","gaussian_labels"]
+    optional_keys = ["close_inds_fn","label_spreading"]
 
     if hasattr(job['nntype'], 'split_inds'):
         required_keys.append("close_inds_fn")
+
+    if "label_spreading" in job.keys():
+        if job["label_spreading"] != "gaussian" and job["label_spreading"] != "uniform":
+            raise ImproperlyConfigured(
+                f'label_spreading must be set to gaussian or uniform')
 
     for key in job.keys():
         try:
