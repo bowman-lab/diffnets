@@ -138,7 +138,7 @@ def test_analyze():
         subprocess.call(['python', SCRIPTS_DIR + "/main.py", "analyze",
                         "%s/data/whitened" % curr_dir,
                         "%s/data/trained_output" % curr_dir,
-                         "--cluster_number", "20"])
+                         "-c", "20"])
 
         assert os.path.exists(os.path.join("%s/data/trained_output" % curr_dir,
                                             "rescorr-100.pml"))
