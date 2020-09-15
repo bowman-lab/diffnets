@@ -228,14 +228,14 @@ def train(config):
 @cli.command(name='analyze')
 @click.argument('data_dir')
 @click.argument('net_dir')
-@click.option('--inds',
+@click.option('-i', '--inds',
               help=f'Path to a np.array that contains indices with respect '
                     'to data_dir/master.pdb. These indices will be used'
                     'to find features that distinguish variants by looking at '
                     'a subset of the protein instead of the whole protein')
-@click.option('--cluster_number', default=1000,
+@click.option('-c','--cluster-number', default=1000,
               help=f'Number of clusters desired for clustering on latent space')
-@click.option('--n_distances', default=100,
+@click.option('-n','--n-distances', default=100,
               help=f'Number of distances to plot. Takes the n distances that '
                     'are most correlated with the diffnet classification score.')
 def analyze(data_dir,net_dir,inds=None,cluster_number=1000,n_distances=100):
