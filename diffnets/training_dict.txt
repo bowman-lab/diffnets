@@ -80,8 +80,10 @@ label_spreading : 'gaussian' or 'uniform'
 
 inds1 : np.ndarray
     Indices - relative to the entire input - that will go into the
-    classification task. ONLY USE WITH SPLIT AUTOENCODER ARCHITECTURES.
+    classification task. Remember for each atom there is a separate input
+    for its X,Y, and Z position. ONLY USE WITH SPLIT AUTOENCODER ARCHITECTURES.
 
 inds2 : np.ndarray
     Indices - relative to the entire input - that will NOT go into the
-    classification task. ONLY USE WITH SPLIT AUTOENCODER ARCHITECTURES.
+    classification task. Remember for each atom there is a separate input
+    for its X,Y, and Z position. ONLY USE WITH SPLIT AUTOENCODER ARCHITECTURES.

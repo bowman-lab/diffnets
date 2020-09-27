@@ -61,6 +61,7 @@ def preprocess_data(sim_dirs,pdb_fns,outdir,atom_sel=None,stride=1):
     if atom_sel:
         try:
             atom_sel = np.load(atom_sel)
+            #Add a check to make sure atom_sel is not same
             n_atoms = [md.load(fn).atom_slice(atom_sel[i]).n_atoms for i,fn in enumerate(var_pdb_fns)]
             if len(np.unique(n_atoms)) != 1:
                 raise ImproperlyConfigured(
@@ -210,7 +211,7 @@ def train(config):
                 close_xyz_inds.append(i*3)
                 close_xyz_inds.append((i*3)+1)
                 close_xyz_inds.append((i*3)+2)
-            all_inds = np.arange((pdb.n_atoms*3))
+            all_inds = np.arange((master.n_atoms*3))
             non_close_xyz_inds = np.setdiff1d(all_inds,close_xyz_inds)
             job['inds1'] = np.array(close_xyz_inds)
             job['inds2'] = non_close_xyz_inds
