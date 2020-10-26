@@ -8,7 +8,7 @@ from diffnets.utils import get_fns
 
 CURR_DIR = os.getcwd()
 UP_DIR = CURR_DIR[:-len(CURR_DIR.split('/')[-1])]
-SCRIPTS_DIR = UP_DIR + 'scripts'
+CLI_DIR = UP_DIR + 'cli'
 
 def test_preprocess_default_inds():
     curr_dir = os.getcwd()
@@ -26,7 +26,7 @@ def test_preprocess_default_inds():
                     os.path.join(curr_dir,"data/beta-peptide2.pdb")])
         np.save(pdb_fns_tmp, inp, allow_pickle=False)
 
-        subprocess.call(['python', SCRIPTS_DIR + "/main.py", "process",
+        subprocess.call(['python', CLI_DIR + "/main.py", "process",
                         traj_dirs_tmp, pdb_fns_tmp, td])
 
         assert os.path.exists(os.path.join(td,"wm.npy"))
@@ -70,7 +70,7 @@ def test_preprocess_custom_inds():
         both_inds = np.array([inds,inds])
         np.save(inds_fn_tmp, both_inds, allow_pickle=False)
 
-        subprocess.call(['python', SCRIPTS_DIR + "/main.py", "process", 
+        subprocess.call(['python', CLI_DIR + "/main.py", "process", 
                         traj_dirs_tmp, pdb_fns_tmp, td,
                         "-a" + inds_fn_tmp])
 
@@ -124,7 +124,7 @@ def test_train():
             ftmp.write("\n")
         ftmp.close()
         
-        subprocess.call(['python', SCRIPTS_DIR + "/main.py", "train",
+        subprocess.call(['python', CLI_DIR + "/main.py", "train",
                         ftmp.name])
 
         assert os.path.exists(os.path.join(td,"nn_best_polish.pkl"))
@@ -135,7 +135,7 @@ def test_train():
 def test_analyze():
     curr_dir = os.getcwd()
     try:
-        subprocess.call(['python', SCRIPTS_DIR + "/main.py", "analyze",
+        subprocess.call(['python', CLI_DIR + "/main.py", "analyze",
                         "%s/data/whitened" % curr_dir,
                         "%s/data/trained_output" % curr_dir,
                          "-c", "20"])

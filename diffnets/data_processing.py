@@ -50,7 +50,6 @@ class ProcessTraj:
                  outdir,
                  atom_sel=None,
                  stride=1):
-                 #gly_mut_ind = []):
         self.traj_dir_paths = traj_dir_paths
         self.pdb_fn_paths = pdb_fn_paths
         self.outdir = outdir

@@ -6,6 +6,12 @@ from diffnets.training import Trainer
 from diffnets.analysis import Analysis
 import multiprocessing as mp
 
+########################################################
+#                                                      #
+#     View training_dict.txt for descriptions of all   #
+#      training parameters (i.e. values for job)       #
+#                                                      #
+########################################################
 
 if __name__=='__main__':
     # Directory with processed/whitened data

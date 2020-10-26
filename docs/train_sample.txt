@@ -67,12 +67,15 @@ outdir : str
 hidden_layer_size: list
     List where length of list indicates the number of desired hidden layers
     and each value indicates the number of nodes in the hidden layer. If left
-    as a blank list, will add one hidden layer 1/4th size of input.
+    as a blank list, will add one hidden layer 1/4th size of input. This
+    parameter specifies the layers between (and not including) the input and the
+    latent layer.
 
 label_spreading  : 'gaussian' or 'uniform'
-    Option to draw labels from a gaussian centered on values in act_map,
-    or uniformly from 0 to 1 for all variants (i.e. make the EM bounds do
-    all the work of distinguishing variants)
+    Optional parameter to draw labels from a gaussian centered on values in
+    act_map, or uniformly from 0 to 1 for all variants (i.e. make the EM 
+    bounds do all the work of distinguishing variants). If no option specified
+    the initial labels will follow act_map exactly.
 
 close_inds_fn: str
     Path to np.array of atom indices (relative to master.pdb) that indicates
