@@ -1,23 +1,51 @@
-The code is currently organized to be run in 3 separate chunks. Tutorial below is for using the command line interface. For more custom solutions, interface with the code directly (examples are in the 'example_api_scripts' dir. i.e. data_processing_submit.py, train_submit.py, and analysis_submit.py)
+The code is currently organized to be run in 3 separate chunks. Tutorial below
+ is for using the command line interface. For more custom solutions, interface
+ with the code directly (examples are in the 'example_api_scripts' dir.
+ (i.e. data_processing_submit.py, train_submit.py, and analysis_submit.py)
 
-The first step is to convert raw trajectories into diffnet input, which should be performed on a CPU node.
+The first step is to convert raw trajectories into diffnet input, which
+ should be performed on a CPU node.
 
 python /path/to/diffnets/diffnets/cli/main.py process {sim_dirs} {pdb_fns} {outdir}
 
-where {sim_dirs} is a path to an np.array containing directory names. The array needs one directory name (string) for each variant where each directory contains all trajectories for that variant. {pdb_fns} is a path to an np.array containing pdb filenames. The array needs one pdb filename for each variant. The order of variants should match the order of {sim_dirs}. {outdir} is the path you would like processed data to live. Examples of these files can be found in example_cli_files.
+where {sim_dirs} is a path to an np.array containing directory names. The array
+ needs one directory name (string) for each variant where each directory contains
+ all trajectories for that variant. {pdb_fns} is a path to an np.array containing
+ pdb filenames. The array needs one pdb filename for each variant. The order of
+ variants should match the order of {sim_dirs}. {outdir} is the path you would
+ like processed data to live. Examples of these files can be found in example_cli_files.
 
-You can optionally include -a {atom-sel}  where {atom-sel} is a path to an np.array containing a list of indices for each variant, which operates on the pdbs supplied. The indices need to select equivalent atoms across variants. Without specifying tatom_sel, the default will grab C, CA, CB, and N atoms from each variant. If this doesn't in an equivalent number of atoms across variants, the code will fail and you will need to specify atom_sel. Additionally, you can optionally include -s {stride} where stride is a path to a np.array containing a list of integers that correspond to how much trajectory subsampling you want to perform for each variant. Examples of these files can be found in example_cli_files.
+You can optionally include -a {atom-sel}  where {atom-sel} is a path to an 
+np.array containing a list of indices for each variant, which operates on the
+ pdbs supplied. The indices need to select equivalent atoms across variants.
+ Without specifying tatom_sel, the default will grab C, CA, CB, and N atoms 
+from each variant. If this doesn't in an equivalent number of atoms across 
+variants, the code will fail and you will need to specify atom_sel. Additionally,
+ you can optionally include -s {stride} where stride is a path to a np.array
+ containing a list of integers that correspond to how much trajectory subsampling
+ you want to perform for each variant. Examples of these files can be found in
+ example_cli_files.
 
 Next, train a DiffNet with the folowing command:
 
 python /path/to/diffnets/diffnets/cli/main.py train config.yml
 
-where config.yml contains all the training parameters. Look at train_sample.yml as an example and train_sample.txt for descriptions of each parameter. Training on a GPU gives better performance than on a CPU.
+where config.yml contains all the training parameters. Look at train_sample.yml
+ as an example and train_sample.txt for descriptions of each parameter. Training
+ on a GPU gives better performance than on a CPU.
 
 Finally, run some automated analyses with...
 
 python /path/to/diffnets/diffnets/cli/main.py analyze {data_dir} {net_dir}
 
-where {data_dir} is the path to the directory output by the earlier 'process' command, and {net_dir} is the path to the directory output by the earlier 'train' command.
+where {data_dir} is the path to the directory output by the earlier 'process'
+ command, and {net_dir} is the path to the directory output by the earlier 'train' command.
 
-This analysis includes reconstructing all trajectories using the DiffNet, calculating an RMSD between DiffNet reconstructed structures and their respective simulation frame, calculating classification labels for all frames, and calculating the latent vector for all frames. Additionally, this script is setup to generate a .pml file in the {net_dir}. Loading {data_dir}/master.pdb into pymol followed by loading this .pml file will generate a figure like Figure 7 in the paper. Finally, this will provide a `morph` directory that contains a PDB containing 10 structures the represent DiffNet labels changing from 0 to 1.
+This analysis includes reconstructing all trajectories using the DiffNet, 
+calculating an RMSD between DiffNet reconstructed structures and their respective
+ simulation frame, calculating classification labels for all frames, and 
+calculating the latent vector for all frames. Additionally, this script is setup
+ to generate a .pml file in the {net_dir}. Loading {data_dir}/master.pdb into
+ pymol followed by loading this .pml file will generate a figure like Figure 7 in 
+the paper. Finally, this will provide a `morph` directory that contains a PDB 
+containing 10 structures the represent DiffNet labels changing from 0 to 1.

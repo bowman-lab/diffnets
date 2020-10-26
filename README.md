@@ -35,7 +35,7 @@ Documentation and testing is in its infancy stages and will be continually updat
 
 ## Brief tutorial
 
-For a brief tutorial on how to use DiffNets as a command line interface (cli) please view docs/cli_tutorial.txt 
+For a brief tutorial on how to use DiffNets as a command line interface (cli) please view docs/cli_tutorial.txt (recommended way to start using DiffNets)
 
 For examples on how to use the API, view docs/example_api_scripts
 
@@ -48,3 +48,4 @@ Copyright (c) 2020, Michael D. Ward, Bowman Lab
  
 Project based on the 
 [Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.3.
+
