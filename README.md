@@ -4,8 +4,7 @@ diffnets
 [![Travis Build Status](https://travis-ci.com/REPLACE_WITH_OWNER_ACCOUNT/diffnets.svg?branch=master)](https://travis-ci.com/REPLACE_WITH_OWNER_ACCOUNT/diffnets)
 [![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/diffnets/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/diffnets/branch/master)
 
-![DiffNets Logo]
-(logo.png)
+![DiffNets Logo](logo.png)
 
 Supervised and self-supervised autoencoders to identify the mechanistic basis for biochemical differences between protein variants.
 
