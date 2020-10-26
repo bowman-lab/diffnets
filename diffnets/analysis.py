@@ -203,7 +203,6 @@ def euc_dist(trj, frame):
 def recon_traj(enc, net, top, cm):
     n = len(enc)
     n_atoms = top.n_atoms
-    print(n_atoms)
     x = Variable(torch.from_numpy(enc).type(torch.FloatTensor))
     coords = net.decode(x)
     coords = coords.detach().numpy()
@@ -326,8 +325,8 @@ def morph_label(net,nn_dir,data_dir,n_frames=10):
     labels = utils.load_npy_dir(labels_dir,"*.npy")
     labels = labels.flatten()
 
-    my_min = 0
-    my_max = 1
+    my_min = np.min(labels)
+    my_max = np.max(labels)
     morph_enc = np.zeros((n_frames,n_latent))
     vals = np.linspace(my_min, my_max, n_frames)
     delta = (vals[1] - vals[0]) * 0.5
@@ -374,6 +373,7 @@ def find_features(net,data_dir,nn_dir,clust_cents,inds,out_fn,num2plot=100):
     labels = labels[clust_cents]
 
     n = len(inds)
+    print(n, " distances being calculated")
     r_values = []
     slopes = []
     for i in np.arange(n*n):

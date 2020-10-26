@@ -161,7 +161,11 @@ class ProcessTraj:
         else:
             print("on traj", traj_num)
 
-        traj = md.load(traj_fn, top=top_fn, stride=self.stride)
+        if type(self.stride) == np.ndarray:
+            print(self.stride)
+            traj = md.load(traj_fn, top=top_fn, stride=self.stride[var_ind])
+        else:
+            traj = md.load(traj_fn, top=top_fn, stride=self.stride)
 
         if traj_num is 0:
             print("Selecting inds")

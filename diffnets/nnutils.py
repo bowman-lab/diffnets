@@ -45,10 +45,14 @@ class split_ae(nn.Module):
         self.encoder1.append(nn.Linear(len(inds1),len(inds1)))
         self.encoder2.append(nn.Linear(len(inds2),len(inds2)))
         for i in range(1,self.n-1):
-            small_layer_in = int(np.round(self.sizes[i]*self.ratio))
-            small_layer_out = int(np.round(self.sizes[i+1]*self.ratio))
-            big_layer_in = int(np.round(self.sizes[i] * (1-self.ratio)))
-            big_layer_out = int(np.round(self.sizes[i+1] * (1-self.ratio)))
+            small_layer_in = int(np.ceil(self.sizes[i]*self.ratio))
+            print(small_layer_in)
+            small_layer_out = int(np.ceil(self.sizes[i+1]*self.ratio))
+            print(small_layer_out)
+            big_layer_in = int(np.floor(self.sizes[i] * (1-self.ratio)))
+            print(big_layer_in)
+            big_layer_out = int(np.floor(self.sizes[i+1] * (1-self.ratio)))
+            print(big_layer_out)
             if small_layer_in < 3:
                 small_layer_in = 3
                 big_layer_in = self.sizes[i]-3
@@ -56,8 +60,8 @@ class split_ae(nn.Module):
                 small_layer_out = 3
                 big_layer_out = self.sizes[i]-3
 
-            self.encoder1.append(nn.Linear(int(np.round(self.sizes[i]*self.ratio)), int(np.round(self.sizes[i+1]*self.ratio))))
-            self.encoder2.append(nn.Linear(int(np.round(self.sizes[i] * (1-self.ratio))), int(np.round(self.sizes[i+1] * (1-self.ratio)))))
+            self.encoder1.append(nn.Linear(small_layer_in, small_layer_out))
+            self.encoder2.append(nn.Linear(big_layer_in,big_layer_out))
 
         self.decoder = nn.ModuleList()
         for i in range(self.n-1,0,-1):

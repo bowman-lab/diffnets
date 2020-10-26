@@ -372,8 +372,8 @@ class Trainer:
                 pickle.dump(net, open(out_fn, 'wb'))
                 if use_cuda:
                     net.cuda()
-                if do_em and hasattr(nntype, "classify"):
-                    out_fn = os.path.join(outdir, "tmp_targets.npy")
+                if hasattr(nntype, "classify"):
+                    out_fn = os.path.join(outdir, "tmp_targets%s.npy" % epoch)
                     np.save(out_fn, targets)
 
             # save best net every epoch
@@ -409,6 +409,8 @@ class Trainer:
             targets[one_inds] = 1
         elif label_spread == 'uniform':
             targets = np.array([np.random.uniform() for i in targets])
+        else:
+            targets[:, 0] = act_map[indicators]    
         return targets
 
     def split_test_train(self,n,frac_test):

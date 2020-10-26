@@ -28,7 +28,7 @@ def cli():
 @click.argument('pdb_fns')
 @click.argument('outdir')
 @click.option('-a','--atom-sel',default=None)
-@click.option('-s','--stride', default=1, help='Factor to subsample by.')
+@click.option('-s','--stride',default=None)
 def preprocess_data(sim_dirs,pdb_fns,outdir,atom_sel=None,stride=1):
     """ sim_dirs: Path to an np.array containing directory names. The 
                array needs one directory name for each variant where each
@@ -41,6 +41,9 @@ def preprocess_data(sim_dirs,pdb_fns,outdir,atom_sel=None,stride=1):
         atom_sel: (optional) Path to an np.array containing a list of indices for 
               each variant, which operates on the pdbs supplied. The indices
               need to select equivalent atoms across variants.
+
+        stride: (optional) Path to an np.array containing an integer for
+               each variant.
 
         outdir: Path you would like processed data to live.
  """
@@ -57,6 +60,14 @@ def preprocess_data(sim_dirs,pdb_fns,outdir,atom_sel=None,stride=1):
         click.echo(f'Incorrect input for pdb_fns. Use --help flag for '
                'information on the correct input for pdb_fns.')
         raise
+
+    if stride:
+        try:
+            stride = np.load(stride)
+        except:
+            click.echo(f'Incorrect input for stride. User must supply a ' 
+               'path to a np.array that has a stride value for each variant.')
+            raise
 
     if atom_sel:
         try:
@@ -91,7 +102,7 @@ def preprocess_data(sim_dirs,pdb_fns,outdir,atom_sel=None,stride=1):
             click.echo(f'Order of pdb_fns and sim_dirs need to '
                 'correspond to each other.')
             raise
-
+    
     proc_traj = ProcessTraj(var_dir_names,var_pdb_fns,outdir,stride=stride,
                             atom_sel=atom_sel)
     proc_traj.run()
@@ -282,7 +293,15 @@ def analyze(data_dir,net_dir,inds=None,cluster_number=1000,n_distances=100):
     # to generate a figure showing what the diffnet learned.
     #Indices for feature analysis
     if inds is None:
+        print("inds is none")
         inds = np.arange(n)
+    else:
+        try:
+            inds = np.load(inds)
+            print(inds.shape)
+        except:
+            click.echo(f'Inds needs to be a path to a np.array')
+            raise
     a.find_feats(inds,"rescorr-%s.pml" % n_distances,n_states=cluster_number,
                  num2plot=n_distances)
 
