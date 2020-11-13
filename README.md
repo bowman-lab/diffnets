@@ -11,7 +11,7 @@ Supervised and self-supervised autoencoders to identify the mechanistic basis fo
 
 If you use 'DiffNets' for published research, please cite us:
 
-M.D. Ward, M.I. Zimmerman, S. Swamidass, G.R. Bowman. DiffNets: Self-supervised deep learning to identify the mechanistic basis for biochemical differnces between protein variants. bioRxiv. DOI: 10.1101/2020.07.01.182725, 2020.
+M.D. Ward, M.I. Zimmerman, S. Swamidass, G.R. Bowman. DiffNets: Self-supervised deep learning to identify the mechanistic basis for biochemical differences between protein variants. bioRxiv. DOI: 10.1101/2020.07.01.182725, 2020.
 
 ## Dependencies
 

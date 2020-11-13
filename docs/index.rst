@@ -3,14 +3,17 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to diffnets's documentation!
+Welcome to diffnets' documentation!
 =========================================================
+
+DiffNets is a deep-learning framework for learning the structural determinants of proteins biochemical properties by comparing different protein structural ensembles. This package makes it easy to use DiffNets (and other types of autoencoders) on simulation data.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   getting_started
+   Installation
+   Tutorial
    api
 
 
