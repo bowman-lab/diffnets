@@ -50,6 +50,10 @@ conda install pytorch torchvision -c pytorch
 
 conda install pytorch torchvision cudatoolkit=10.1 -c pytorch
 
+*Install click*
+
+conda install click
+
 *Install diffnets*
 
 cd diffnets

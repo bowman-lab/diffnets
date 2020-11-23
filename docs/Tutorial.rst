@@ -7,9 +7,15 @@ The code is currently organized to be run in 3 separate chunks. Tutorial below i
 
 The first step is to convert raw trajectories into diffnet input, which should be performed on a CPU node.::
 
-	python /path/to/diffnets/diffnets/cli/main.py process {sim_dirs} {pdb_fns} {outdir}
+        python /path/to/diffnets/diffnets/cli/main.py process {sim_dirs} {pdb_fns} {outdir}
 
 where {sim_dirs} is a path to an np.array containing directory names. The array needs one directory name (string) for each variant where each directory contains all trajectories for that variant. {pdb_fns} is a path to an np.array containing pdb filenames. The array needs one pdb filename for each variant. The order of variants should match the order of {sim_dirs}. {outdir} is the path you would like processed data to live. Examples of these files can be found in docs/example_cli_files.
+
+For instances where your input pdb files have different numbers of residues (e.g. homologs with insertions/deletions, comparing proteins with and without a binding partner) you must supply an atom selection that chooses equivalent atoms across pdbs.::
+
+        python /path/to/diffnets/diffnets/cli/main.py process {sim_dirs} {pdb_fns} {outdir} -a{atom_sel}
+
+where {atom_sel} is a numpy array that contains a numpy array for each pdb which specifies the atom indices to be used. The order of these arrays should correspond to the order of {pdb_fns}.
 
 **2. Train the DiffNet**
 
@@ -17,7 +23,7 @@ The next step is to actually "train" the DiffNet.::
 
 	python /path/to/diffnets/diffnets/cli/main.py train config.yml
 
-where config.yml contains all the training parameters. Look at docs/train_sample.yml as an example and docs/train_sample.txt for descriptions of each parameter. Training on a GPU gives better performance than on a CPU.
+where config.yml contains all the training parameters. Look at docs/train_sample.yml as an example and docs/train_sample.txt for descriptions of each parameter. Training on a GPU gives better performance than on a CPU. One major consideration is which architecture you want to use. If you want to classify based on your entire input data, you will use nnutils.sae. If you want a split architecture that focuses the classification on a region of interest, you will use nnutil.split_sae, and you will have to supply a numpy file that indicates which atoms to include in the classification (see close_inds_fn in docs/train_sample.txt and the split_inds function in nnutils) 
 
 **3. Analysis**
 

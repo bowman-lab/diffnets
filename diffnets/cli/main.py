@@ -84,6 +84,18 @@ def preprocess_data(sim_dirs,pdb_fns,outdir,atom_sel=None,stride=1):
                'information on the correct input for atom_sel.')
             raise
 
+    else:
+        n_resis = []
+        for fn in var_pdb_fns:
+            pdb = md.load(fn)
+            n_resis.append(pdb.top.n_residues)
+        if len(np.unique(n_resis)) != 1:
+            raise ImproperlyConfigured(
+                f'The PDBs supplied have different numbers of residues. The '
+                 'default atom selection does not work in this case. Please '
+                 'use the --atom-sel option to choose equivalent atoms across  '
+                 'different variant pdbs.')
+
     if len(var_dir_names) != len(var_pdb_fns):
         raise ImproperlyConfigured(
             f'pdb_fns and sim_dirs must point to np.arrays that have '

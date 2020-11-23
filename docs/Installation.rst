@@ -47,6 +47,10 @@ If you are installing on a cuda enabled GPU you will need cuda installed. Recomm
 
 	conda install pytorch torchvision cudatoolkit=10.1 -c pytorch
 
+Install Click::
+
+        conda install click
+
 Install diffnets::
 
 	cd diffnets
