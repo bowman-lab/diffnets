@@ -373,7 +373,7 @@ class Trainer:
                 if use_cuda:
                     net.cuda()
                 if hasattr(nntype, "classify"):
-                    out_fn = os.path.join(outdir, "tmp_targets_%s_%s.npy" % (label_str,epoch)
+                    out_fn = os.path.join(outdir, "tmp_targets_%s_%s.npy" % (label_str,epoch))
                     np.save(out_fn, targets)
 
             # save best net every epoch
