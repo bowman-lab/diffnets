@@ -1,7 +1,9 @@
 Tutorial
 ========
 
-The code is currently organized to be run in 3 separate chunks. Tutorial below is for using the command line interface. For more custom solutions, interface with the code directly (examples are in the docs folder at 'example_api_scripts', i.e. data_processing_submit.py, train_submit.py, and analysis_submit.py)
+The code is currently organized to be run in 3 separate chunks. Please view examples/diffnet_tutorial.ipynb on the github for a similar, but more thorough tutorial!
+
+ Tutorial below is for using the command line interface. For more custom solutions, interface with the code directly (examples are in the docs folder at 'example_api_scripts', i.e. data_processing_submit.py, train_submit.py, and analysis_submit.py)
 
 **1. Preprocess simulation data**
 
