@@ -22,7 +22,7 @@ import scipy.sparse
 import sys
 from pylab import *
 from torch.autograd import Variable
-import defaultdict
+from collections import defaultdict
 
 class Analysis:
     """Core object for running analysis.
