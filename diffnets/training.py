@@ -111,7 +111,7 @@ class Trainer:
         return training_generator, validation_generator, em_generator
     
     def em_parallel(self, net, em_generator, train_inds, em_batch_size,
-                    indicators, em_bounds, em_n_cores):
+                    indicators, em_bounds, em_n_cores, label_str, epoch):
         """Use expectation maximization to update all training classification
            labels.
 
@@ -148,6 +148,8 @@ class Trainer:
         train_inds = []
         inputs = []
         i = 0
+        ##To save DiffNet labels before each EM update
+        pred_labels = -1 * np.ones(indicators.shape[0])
         for local_batch, local_labels, t_inds in em_generator:
             t_inds = np.array(t_inds)
             local_batch, local_labels = local_batch.to(device), local_labels.to(device)
@@ -159,12 +161,15 @@ class Trainer:
             else:
                 class_pred = net(local_batch)
             cur_labels = class_pred.cpu().detach().numpy()
+            pred_labels[t_inds] = cur_labels.flatten()
             inputs.append([cur_labels, indicators[t_inds], em_bounds])
             if i % freq_output == 0:
                 print("      %d/%d" % (i, n_em))
             i += 1
             train_inds.append(t_inds)
 
+        pred_label_fn = os.path.join(self.job['outdir'],"tmp_labels_%s_%s.npy" % (label_str,epoch))
+        np.save(pred_label_fn,pred_labels)
         pool = mp.Pool(processes=em_n_cores)
         res = pool.map(self.apply_exmax, inputs)
         pool.close()
@@ -350,7 +355,9 @@ class Trainer:
 
             if do_em and hasattr(nntype, "classify"):
                 print("    Doing EM")
-                targets = self.em_parallel(net, em_generator, train_inds, em_batch_size, indicators, em_bounds, em_n_cores)
+                targets = self.em_parallel(net, em_generator, train_inds,
+                                    em_batch_size, indicators, em_bounds,
+                                    em_n_cores, label_str, epoch)
                 training_generator, validation_generator, em_generator = \
                     self.set_training_data(job, train_inds, test_inds, targets, data)
 
