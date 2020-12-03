@@ -540,6 +540,9 @@ class Trainer:
                                validation_generator, em_generator,
                                targets, indicators, train_inds,
                                test_inds, net, str(cur_layer), job)
+            #Might make sense to make this optional
+            training_generator, validation_generator, em_generator = \
+                self.set_training_data(job, train_inds, test_inds, targets, data)          
             old_net = net
 
         #Polishing
