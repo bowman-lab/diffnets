@@ -150,7 +150,7 @@ def train(config):
         required_keys.append("close_inds_fn")
 
     if "label_spreading" in job.keys():
-        if job["label_spreading"] != "gaussian" and job["label_spreading"] != "uniform":
+        if job["label_spreading"] not in ["gaussian","uniform","bimodal"]:
             raise ImproperlyConfigured(
                 f'label_spreading must be set to gaussian or uniform')
 

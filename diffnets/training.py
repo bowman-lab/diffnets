@@ -409,13 +409,20 @@ class Trainer:
         targets = np.zeros((len(indicators), 1))
         print(targets.shape)
         if label_spread == 'gaussian':
-            targets = np.array([np.random.normal(i,0.1) for i in targets])
+            targets = np.array([np.random.normal(act_map[i],0.1) for i in indicators])
             zero_inds = np.where(targets < 0)[0]
             targets[zero_inds] = 0
             one_inds = np.where(targets > 1)[0]
             targets[one_inds] = 1
         elif label_spread == 'uniform':
             targets = np.array([np.random.uniform() for i in targets])
+        elif label_spread == 'bimodal':
+            targets = np.array([np.random.normal(0.8, 0.1) if np.random.uniform() < act_map[i]
+                                else np.random.normal(0.2, 0.1) for i in indicators])
+            zero_inds = np.where(targets < 0)[0]
+            targets[zero_inds] = 0
+            one_inds = np.where(targets > 1)[0]
+            targets[one_inds] = 1
         else:
             targets[:, 0] = act_map[indicators]    
         return targets
