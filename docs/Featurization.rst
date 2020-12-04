@@ -7,7 +7,7 @@ ProcessTraj
 ProcessTraj allows ones to process simulation trajectories. Specifically, it provides functionality to operate on sets of trajectories and corresponding topology files. The main goal is to process trajectories with different numbers of atoms to an equivalent set of atoms across all trajectories, and then to normalize each atom's position. The *run* method puts all of this together. It selects a common subset of atoms (C,CA,CB,N by default), aligns all trajectories, calculates the average center of mass of each atom, and performs various other bookkeeping that is ultimately useful in the context of the next step in the pipeline, training. Using the *run* method will create an output directory that has the necessary structure and data to train a DiffNet. 
 
 .. autosummary::
-   :toctree: autosummary
+   :toctree: generated/
 
    diffnets.data_processing.ProcessTraj
 
