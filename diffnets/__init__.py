@@ -4,7 +4,9 @@ Supervised and self-supervised autoencoders to identify the mechanistic basis fo
 """
 
 # Add imports here
-#from .training import *
+from .training import *
+from .data_processing import ProcessTraj
+from .analysis import Analysis
 
 # Handle versioneer
 from ._version import get_versions

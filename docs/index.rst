@@ -14,6 +14,9 @@ DiffNets is a deep-learning framework for learning the structural determinants o
 
    Installation
    Tutorial
+   Featurization
+   Training
+   Analysis
    api
 
 
