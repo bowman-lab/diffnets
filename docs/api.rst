@@ -1,8 +1,8 @@
 API Documentation
 =================
 
-.. autosummary::
-   :toctree: autosummary
+API
+---
+.. autoclass:: diffnets.training.Trainer
+    :members:
 
-   diffnets.utils
-   diffnets.nnutils
