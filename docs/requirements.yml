@@ -1,0 +1,23 @@
+name: diffnets
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.6
+  - pip
+  - git
+  - sphinx_rtd_theme
+  - sphinx
+  - mdtraj
+  - pytorch
+  - torchvision
+  - cudatoolkit=10.1
+  - click
+  - scikit-learn
+  - matplotlib
+  - cython
+  - mpi4py
+  - pytest
+   
+  - pip:
+    - git+git://github.com/bowman-lab/enspara
