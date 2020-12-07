@@ -1,8 +1,7 @@
-API Documentation
-=================
-
 API
----
-.. autoclass:: diffnets.training.Trainer
-    :members: run
+===
 
+.. toctree::
+   :maxdepth: 2
+
+   diffnets

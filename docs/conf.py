@@ -19,7 +19,7 @@
 
 import os
 import sys
-sys.path.insert(0, os.path.abspath('./autosummary'))
+sys.path.insert(0, os.path.abspath('..'))
 import diffnets
 
 
@@ -59,6 +59,8 @@ autosummary_generate = True
 napoleon_google_docstring = False
 napoleon_use_param = False
 napoleon_use_ivar = True
+
+#autodoc_mock_imports = ['enspara']  # this allows to build the docs on virtual machines that don't have enspara
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
