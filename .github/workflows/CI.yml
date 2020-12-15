@@ -39,7 +39,7 @@ jobs:
       - name: Run tests
         shell: bash -l {0}
         run: |
-          $CONDA/bin/pytest -v -rsx --runslow --cov=diffnets diffnets/tests --tb=short --cov-report=xml
+          pytest -v -rsx --runslow --cov=diffnets diffnets/tests --tb=short --cov-report=xml
       # TODO: verify this works as we expect
       - name: Code coverage
         uses: codecov/codecov-action@v1
