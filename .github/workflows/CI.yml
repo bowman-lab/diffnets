@@ -2,9 +2,8 @@ name: Continuous Integration
 
 # adapted from openff-evaluator/.github/workflows/continuous_integration.yaml
 
-on:
-  push:
-      - master
+on: push
+
 jobs:
   build:
     runs-on: ubuntu-latest
