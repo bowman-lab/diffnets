@@ -41,7 +41,8 @@ jobs:
         run: |
           source $CONDA/bin/activate
           conda activate diffnets-test-conda
-          pytest -v --cov=diffnets diffnets/tests/
+          cd diffnets/tests
+          pytest -v --cov=../diffnets ./
       # TODO: verify this works as we expect
       - name: Code coverage
         uses: codecov/codecov-action@v1
