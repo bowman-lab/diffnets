@@ -53,12 +53,12 @@ class split_ae(nn.Module):
             print(big_layer_in)
             big_layer_out = int(np.floor(self.sizes[i+1] * (1-self.ratio)))
             print(big_layer_out)
-            if small_layer_in < 3:
-                small_layer_in = 3
-                big_layer_in = self.sizes[i]-3
-            if small_layer_out < 3:
-                small_layer_out = 3
-                big_layer_out = self.sizes[i]-3
+            #if small_layer_in < 3:
+            #    small_layer_in = 3
+            #    big_layer_in = self.sizes[i]-3
+            #if small_layer_out < 3:
+            #    small_layer_out = 3
+            #    big_layer_out = self.sizes[i]-3
 
             self.encoder1.append(nn.Linear(small_layer_in, small_layer_out))
             self.encoder2.append(nn.Linear(big_layer_in,big_layer_out))
