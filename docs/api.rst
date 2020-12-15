@@ -1,7 +1,7 @@
-API Documentation
-=================
+API
+===
 
-.. autosummary::
-   :toctree: autosummary
+.. toctree::
+   :maxdepth: 2
 
-   diffnets.canvas
+   diffnets

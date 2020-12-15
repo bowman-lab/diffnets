@@ -187,6 +187,7 @@ class split_ae(nn.Module):
         return recon, latent, None
 
 class split_sae(split_ae):
+    """Supervised autoencoder with split architecture"""
     def __init__(self, layer_sizes,inds1,inds2,wm,uwm):
         super(split_sae, self).__init__(layer_sizes,inds1,inds2,wm,uwm)
 
