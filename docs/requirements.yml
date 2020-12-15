@@ -19,7 +19,7 @@ dependencies:
   - mpi4py
   - pytest
   - pytest-cov
-  - yaml
+  - pyyaml
    
   - pip:
     - git+git://github.com/bowman-lab/enspara
