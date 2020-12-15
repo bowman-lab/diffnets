@@ -1,9 +1,10 @@
-name: diffnets
+name: diffnets-test-conda
 channels:
   - conda-forge
   - defaults
+  - anaconda
 dependencies:
-  - python=3.6
+  - python=3.7
   - pip
   - git
   - sphinx_rtd_theme
@@ -11,7 +12,6 @@ dependencies:
   - mdtraj
   - pytorch
   - torchvision
-  - cudatoolkit=10.1
   - click
   - scikit-learn
   - matplotlib

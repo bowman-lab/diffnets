@@ -1,0 +1,49 @@
+name: Continuous Integration
+
+# adapted from openff-evaluator/.github/workflows/continuous_integration.yaml
+
+on:
+  push:
+      - master
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.7"]
+        environ: [requirements]
+        
+    steps:
+      - uses: actions/checkout@v2
+      - name: Additional info about the build
+        run: |
+          uname -a
+          df -h
+          ulimit -a
+      - name: Configure conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          activate-environment: diffnets-test-conda
+          environment-file: docs/${{ matrix.environ }}.yml
+          auto-activate-base: false
+
+      - name: Environment Information
+        shell: bash -l {0}
+        run: |
+          conda info
+          conda list
+      - name: Install package
+        shell: bash -l {0}
+        run: |
+          python setup.py install 
+      - name: Run tests
+        shell: bash -l {0}
+        run: |
+          $CONDA/bin/pytest -v -rsx --runslow --cov=diffnets diffnets/tests --tb=short --cov-report=xml
+      # TODO: verify this works as we expect
+      - name: Code coverage
+        uses: codecov/codecov-action@v1
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: true
