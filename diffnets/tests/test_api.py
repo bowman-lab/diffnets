@@ -54,4 +54,17 @@ def test_whitening_correctness():
 
     assert (np.abs(117 - np.sum(np.diagonal(c00))) < 1)
 
+def test_whitening_correctness_2():
+    w = WhitenTraj("./data/whitened")
+    # generate dummy data
+    X = np.random.rand(100, 30)
+    X_s = X - X.mean(axis=0)
+    cov = np.cov(X_s.transpose())
+    # get whitening matrix
+    uwm, wm = w.get_wuw_mats(cov)
+    Y = w.apply_whitening(X_s, wm, X_s.mean(axis=0))
+    whitened_cov = np.cov(Y.transpose())
+    # assert that covariance of whitened data is identity
+    assert np.abs(np.sum(whitened_cov) - Y.shape[1]) < .0001
+    assert np.abs(np.sum(np.diagonal(whitened_cov)) - Y.shape[1]) < .0001
 

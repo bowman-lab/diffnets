@@ -488,6 +488,7 @@ class Trainer:
         else:
             targets = self.get_targets(act_map,indicators)
         n_snapshots = len(indicators)
+        np.save(os.path.join(outdir, 'initial_targets.npy'), targets)
 
         train_inds, test_inds = self.split_test_train(n_snapshots,frac_test)
         if data_in_mem:
