@@ -1,0 +1,24 @@
+name: diffnets-test-conda
+channels:
+  - conda-forge
+  - defaults
+  - anaconda
+dependencies:
+  - python=3.6
+  - pip=19.0.3
+  - git
+  - sphinx_rtd_theme
+  - sphinx=1.8.5
+  - mdtraj=1.9.1
+  - pytorch
+  - click=7.0
+  - scikit-learn=0.20.3
+  - matplotlib=3.0.3
+  - cython=0.29.7
+  - mpi4py=2.0.0
+  - pytest=4.4.0
+  - pytest-cov
+  - pyyaml=5.1
+   
+  - pip:
+    - git+git://github.com/bowman-lab/enspara
