@@ -196,7 +196,7 @@ class ProcessTraj:
         if traj_num is 0:
             print("Getting/saving CM")
         n = len(traj)
-        cm = traj.xyz.reshape((n, 3*traj.top.n_atoms)).mean(axis=0)
+        cm = traj.xyz.astype(np.double).reshape((n, 3*traj.top.n_atoms)).mean(axis=0)
         new_cm_fn = os.path.join(self.xtc_dir, "cm" + str(traj_num).zfill(6) + ".npy")
         np.save(new_cm_fn, cm)
         
@@ -238,7 +238,7 @@ class ProcessTraj:
         cm_fns = get_fns(self.xtc_dir, "cm*.npy")
         n_traj = len(traj_fns)
         print("  Found %d trajectories" % n_traj)
-        cm = np.zeros(self.n_feats)
+        cm = np.zeros(self.n_feats, dtype=np.double)
         for i, cm_fn in enumerate(cm_fns):
             d = np.load(cm_fn)
             cm += traj_lens[i] * d
@@ -257,7 +257,7 @@ class ProcessTraj:
         i = 0
         for t in traj_fns:
             traj = md.load(t,top=self.master)
-            data = traj.xyz.reshape((len(traj),3*self.master.top.n_atoms))
+            data = traj.xyz.astype(np.double).reshape((len(traj),3*self.master.top.n_atoms))
             data -= cm
             for d in data:
                 frame = torch.from_numpy(d).type(torch.FloatTensor)
@@ -319,6 +319,7 @@ class WhitenTraj:
         #c00 = np.einsum('bi,bo->io', coords, coords)
         #matmul is faster
         c00 = np.matmul(coords.transpose(),coords)
+        assert isinstance(c00.flat[0], np.double)
         np.save(os.path.join(self.xtc_dir, "cov"+traj_num+".npy"),c00)
 
     def _get_c00_xtc(self, xtc_fn, top, cm):
@@ -344,7 +345,7 @@ class WhitenTraj:
         traj_num = xtc_fn.split("/")[-1].split(".")[0]
         n = len(traj)
         n_atoms = traj.top.n_atoms
-        coords = traj.xyz.reshape((n, 3 * n_atoms))
+        coords = traj.xyz.astype(np.double).reshape((n, 3 * n_atoms))
         self.get_c00(coords,cm,traj_num)
         return n
 
@@ -375,13 +376,15 @@ class WhitenTraj:
         pool.close()        
 
         c00_fns = np.sort(glob.glob(os.path.join(self.xtc_dir, "cov*.npy")))
-        c00 = sum(np.load(c00_fn) for c00_fn in c00_fns)
+        c00 = np.sum(np.load(c00_fn) for c00_fn in c00_fns)
         c00 /= sum(r)
+        assert isinstance(c00.flat[0], np.double)
         return c00
 
     def get_wuw_mats(self, c00):
         """Calculate whitening matrix and unwhitening matrix.
-        
+           Method adapted from deeptime (https://github.com/markovmodel/deeptime/blob/master/time-lagged-autoencoder/tae/utils.py)
+
         Parameters
         ----------
         c00 : np.ndarray, shape=(n_atoms*3,n_atoms*3)
@@ -389,15 +392,26 @@ class WhitenTraj:
 
         Returns
         -------
-        wm : np.ndarray, shape=(n_atoms*3,n_atoms*3)
-            whitening matrix
         uwm : np.ndarray, shape=(n_atoms*3,n_atoms*3)
             unwhitening matrix
+        wm : np.ndarray, shape=(n_atoms*3,n_atoms*3)
+            whitening matrix
         """
-        uwm = sqrtm(c00).real
-        wm = inv(uwm).real
-        return uwm, wm
-    
+        # Previous implementation
+        # uwm = sqrtm(c00).real
+        # wm = inv(uwm).real
+        # return uwm, wm
+
+        # Updated implementation
+        e, v = torch.symeig(torch.from_numpy(c00).double(), eigenvectors=True)
+        # In valid covariance matrix the smallest eigenvalue should be positive
+        # because the covariance matrix is a positive semidefinite matrix
+        # https://stats.stackexchange.com/questions/52976/is-a-sample-covariance-matrix-always-symmetric-and-positive-definite
+        assert torch.min(e) > 0.0
+        d = torch.diag(1.0 / torch.sqrt(e))
+        wm = torch.mm(torch.mm(v, d), v.t())
+        return inv(wm.numpy()), wm.numpy()
+
     def apply_unwhitening(self, whitened, uwm, cm):
         """ Apply whitening to XYZ coordinates.
 
