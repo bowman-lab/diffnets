@@ -415,7 +415,7 @@ class Trainer:
             one_inds = np.where(targets > 1)[0]
             targets[one_inds] = 1
         elif label_spread == 'uniform':
-            targets = np.array([np.random.uniform() for i in targets])
+            targets = np.vstack([np.random.uniform() for i in targets])
         elif label_spread == 'bimodal':
             targets = np.array([np.random.normal(0.8, 0.1) if np.random.uniform() < act_map[i]
                                 else np.random.normal(0.2, 0.1) for i in indicators])
