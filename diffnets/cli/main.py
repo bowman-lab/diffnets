@@ -103,10 +103,10 @@ def preprocess_data(sim_dirs,pdb_fns,outdir,atom_sel=None,stride=1):
 
     for vd,fn in zip(var_dir_names, var_pdb_fns):
         traj_fns = get_fns(vd, "*.*")
-        if len(np.unique([i.split('.')[-1] for i in trajs])) != 1:
+        if len(np.unique([i.split('.')[-1] for i in traj_fns])) != 1:
                 raise ImproperlyConfigured(
                     f'All filenames in the trajectory directory should have the'
-                     'same extension (e.g. all .xtc files or all .h5 files) '
+                     'same extension (e.g. all .xtc files or all .h5 files) ')
         n_traj = len(traj_fns)
         click.echo("Found %s trajectories in %s" % (n_traj,vd))
         if n_traj == 0:

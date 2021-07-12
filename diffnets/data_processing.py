@@ -130,10 +130,10 @@ class ProcessTraj:
         traj_d = {}
         for vd, fn in zip(var_dirs,pdb_fns):
             traj_fns = get_fns(vd, "*.*")
-            if len(np.unique([i.split('.')[-1] for i in trajs])) != 1:
+            if len(np.unique([i.split('.')[-1] for i in traj_fns])) != 1:
                 raise ImproperlyConfigured(
                     f'All filenames in the trajectory directory should have the'
-                     'same extension (e.g. all .xtc files or all .h5 files) '
+                     'same extension (e.g. all .xtc files or all .h5 files) ')
             traj_d[fn] = [traj_num, traj_num+len(traj_fns)] 
             for traj_fn in traj_fns:
             #i indicates which variant the traj came from -- used for training
@@ -165,7 +165,6 @@ class ProcessTraj:
             print("on traj", traj_num)
 
         if type(self.stride) == np.ndarray:
-            print(self.stride)
             traj = md.load(traj_fn, top=top_fn, stride=self.stride[var_ind])
         else:
             traj = md.load(traj_fn, top=top_fn, stride=self.stride)
@@ -195,8 +194,7 @@ class ProcessTraj:
         if traj_num is 0:
             print("Saving trajectory")
         
-        traj_file_type = traj_fn.split('.')[-1]
-        new_traj_fn = os.path.join(self.traj_dir, str(traj_num).zfill(6) + traj_file_type)
+        new_traj_fn = os.path.join(self.traj_dir, str(traj_num).zfill(6) + '.xtc')
         traj.save(new_traj_fn)
         if traj_num is 0:
             print("Getting/saving CM")
@@ -239,7 +237,7 @@ class ProcessTraj:
 
         traj_len_fn = os.path.join(self.outdir, "traj_lens.npy")
         np.save(traj_len_fn, traj_lens)
-        traj_fns = get_fns(self.traj_dir, "*.*")
+        traj_fns = get_fns(self.traj_dir, "*.xtc")
         cm_fns = get_fns(self.traj_dir, "cm*.npy")
         n_traj = len(traj_fns)
         print("  Found %d trajectories" % n_traj)
@@ -255,7 +253,7 @@ class ProcessTraj:
         """For every trajectory frame, write out a PyTorch tensor file,
         which will be used as input to the DiffNet"""
 
-        traj_fns = get_fns(self.xtc_dir, "*.*")
+        traj_fns = get_fns(self.traj_dir, "*.xtc")
         cm_fn = os.path.join(self.outdir, "cm.npy")
         cm = np.load(cm_fn)
         ex_dir = os.path.join(self.outdir,"data")
@@ -327,7 +325,7 @@ class WhitenTraj:
         assert isinstance(c00.flat[0], np.double)
         np.save(os.path.join(self.traj_dir, "cov"+traj_num+".npy"),c00)
 
-    def _get_c00_xtc(self, traj_fn, top, cm):
+    def _get_c00_traj(self, traj_fn, top, cm):
         """Reshape MDTraj Trajectory item into an array of XYZ
            coordinates and then call other function to calculate
            covariance matrix, c00.
@@ -374,7 +372,7 @@ class WhitenTraj:
             Covariance matrix across all trajectories
         """
         pool = mp.Pool(processes=n_cores)
-        f = functools.partial(self._get_c00_xtc, top=top, cm=cm)
+        f = functools.partial(self._get_c00_traj, top=top, cm=cm)
         result = pool.map_async(f, traj_fns)
         result.wait()
         r = result.get()
@@ -524,7 +522,7 @@ class WhitenTraj:
         whitened_dir = os.path.join(outdir,"whitened_trajs")
         mkdir(whitened_dir)
         n_cores = mp.cpu_count()
-        traj_fns = get_fns(self.traj_dir, "*.*")
+        traj_fns = get_fns(self.traj_dir, "*.xtc")
         master = md.load(os.path.join(outdir,"master.pdb"))
         c00 = self.get_c00_traj_list(traj_fns, master.top, self.cm, n_cores)
         c00_fn = os.path.join(outdir,"c00.npy")
