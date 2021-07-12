@@ -62,7 +62,7 @@ class Trainer:
         Parameters
         ----------
         job : dict
-            See training_dict.tx for all keys.
+            See training_dict.txt for all keys.
         train_inds : np.ndarray
             Indices in data that are to be trained on
         test_inds : np.ndarray
@@ -492,10 +492,10 @@ class Trainer:
 
         train_inds, test_inds = self.split_test_train(n_snapshots,frac_test)
         if data_in_mem:
-            xtc_dir = os.path.join(data_dir,"aligned_xtcs")
+            traj_dir = os.path.join(data_dir,"aligned_trajs")
             top_fn = os.path.join(data_dir, "master.pdb")
             master = md.load(top_fn)
-            data = utils.load_traj_coords_dir(xtc_dir, "*.xtc", master.top)
+            data = utils.load_traj_coords_dir(traj_dir, "*.*", master.top)
         else:
             data = os.path.join(data_dir, "data")
 

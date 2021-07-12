@@ -53,7 +53,7 @@ class ProcessTraj:
         self.traj_dir_paths = traj_dir_paths
         self.pdb_fn_paths = pdb_fn_paths
         self.outdir = outdir
-        self.xtc_dir = os.path.join(outdir, "aligned_xtcs")
+        self.traj_dir = os.path.join(outdir, "aligned_trajs")
         self.indicator_dir = os.path.join(outdir, "indicators")
         self.atom_sel = atom_sel
         if self.atom_sel is None:
@@ -129,7 +129,11 @@ class ProcessTraj:
         pdb_fns = self.pdb_fn_paths
         traj_d = {}
         for vd, fn in zip(var_dirs,pdb_fns):
-            traj_fns = get_fns(vd, "*.xtc")
+            traj_fns = get_fns(vd, "*.*")
+            if len(np.unique([i.split('.')[-1] for i in trajs])) != 1:
+                raise ImproperlyConfigured(
+                    f'All filenames in the trajectory directory should have the'
+                     'same extension (e.g. all .xtc files or all .h5 files) '
             traj_d[fn] = [traj_num, traj_num+len(traj_fns)] 
             for traj_fn in traj_fns:
             #i indicates which variant the traj came from -- used for training
@@ -189,15 +193,16 @@ class ProcessTraj:
         
         # save traj and its center of mass
         if traj_num is 0:
-            print("Saving xtc")
+            print("Saving trajectory")
         
-        new_traj_fn = os.path.join(self.xtc_dir, str(traj_num).zfill(6) + ".xtc")
+        traj_file_type = traj_fn.split('.')[-1]
+        new_traj_fn = os.path.join(self.traj_dir, str(traj_num).zfill(6) + traj_file_type)
         traj.save(new_traj_fn)
         if traj_num is 0:
             print("Getting/saving CM")
         n = len(traj)
         cm = traj.xyz.astype(np.double).reshape((n, 3*traj.top.n_atoms)).mean(axis=0)
-        new_cm_fn = os.path.join(self.xtc_dir, "cm" + str(traj_num).zfill(6) + ".npy")
+        new_cm_fn = os.path.join(self.traj_dir, "cm" + str(traj_num).zfill(6) + ".npy")
         np.save(new_cm_fn, cm)
         
         indicators = var_ind * np.ones(n)
@@ -209,7 +214,7 @@ class ProcessTraj:
         """Strip all trajectories to a subset of atoms and align to a
            reference pdb. Also, calculate and write out the mean center 
            of mass of all atoms across all trajectories. Will write out 
-           new trajectory (.xtc files) and corresponding "inidcator" lists
+           new trajectory and corresponding "indicator" lists
            to indicate which variant simulation each data frame came from.
 
         Parameters
@@ -234,8 +239,8 @@ class ProcessTraj:
 
         traj_len_fn = os.path.join(self.outdir, "traj_lens.npy")
         np.save(traj_len_fn, traj_lens)
-        traj_fns = get_fns(self.xtc_dir, "*.xtc")
-        cm_fns = get_fns(self.xtc_dir, "cm*.npy")
+        traj_fns = get_fns(self.traj_dir, "*.*")
+        cm_fns = get_fns(self.traj_dir, "cm*.npy")
         n_traj = len(traj_fns)
         print("  Found %d trajectories" % n_traj)
         cm = np.zeros(self.n_feats, dtype=np.double)
@@ -250,7 +255,7 @@ class ProcessTraj:
         """For every trajectory frame, write out a PyTorch tensor file,
         which will be used as input to the DiffNet"""
 
-        traj_fns = get_fns(self.xtc_dir, "*.xtc")
+        traj_fns = get_fns(self.xtc_dir, "*.*")
         cm_fn = os.path.join(self.outdir, "cm.npy")
         cm = np.load(cm_fn)
         ex_dir = os.path.join(self.outdir,"data")
@@ -272,7 +277,7 @@ class ProcessTraj:
         inputs, traj_d = self.make_traj_list()
         traj_d_path = os.path.join(self.outdir,"traj_dict.pkl")
         pickle.dump(traj_d, open(traj_d_path, "wb" )) 
-        mkdir(self.xtc_dir)
+        mkdir(self.traj_dir)
         mkdir(self.indicator_dir)
         mkdir(os.path.join(self.outdir,"data"))
         self.preprocess_traj(inputs)
@@ -287,7 +292,7 @@ class WhitenTraj:
        data_dir : str
            Path to a directory that contains a topology file, a file with
            the mean center of mass of all atoms across all trajectories, 
-           and a dir named "aligned_xtcs" with all aligned trajectories.
+           and a dir named "aligned_trajs" with all aligned trajectories.
 
        References
        ----------
@@ -297,7 +302,7 @@ class WhitenTraj:
     """
     def __init__(self,data_dir):
         self.data_dir = data_dir
-        self.xtc_dir = os.path.join(self.data_dir,"aligned_xtcs")
+        self.traj_dir = os.path.join(self.data_dir,"aligned_trajs")
         self.cm = np.load(os.path.join(self.data_dir,"cm.npy"))
 
     def get_c00(self, coords, cm, traj_num):
@@ -320,16 +325,16 @@ class WhitenTraj:
         #matmul is faster
         c00 = np.matmul(coords.transpose(),coords)
         assert isinstance(c00.flat[0], np.double)
-        np.save(os.path.join(self.xtc_dir, "cov"+traj_num+".npy"),c00)
+        np.save(os.path.join(self.traj_dir, "cov"+traj_num+".npy"),c00)
 
-    def _get_c00_xtc(self, xtc_fn, top, cm):
+    def _get_c00_xtc(self, traj_fn, top, cm):
         """Reshape MDTraj Trajectory item into an array of XYZ
            coordinates and then call other function to calculate
            covariance matrix, c00.
 
         Parameters
         ----------
-        xtc_fn : str
+        traj_fn : str
             Path to trajectory
         top : md.Trajectory object
             Topology corresponding to the trajectory
@@ -341,20 +346,20 @@ class WhitenTraj:
         n : int
             Number of data frames in the trajectory
         """
-        traj = md.load(xtc_fn, top=top)
-        traj_num = xtc_fn.split("/")[-1].split(".")[0]
+        traj = md.load(traj_fn, top=top)
+        traj_num = traj_fn.split("/")[-1].split(".")[0]
         n = len(traj)
         n_atoms = traj.top.n_atoms
         coords = traj.xyz.astype(np.double).reshape((n, 3 * n_atoms))
         self.get_c00(coords,cm,traj_num)
         return n
 
-    def get_c00_xtc_list(self, xtc_fns, top, cm, n_cores):
+    def get_c00_traj_list(self, traj_fns, top, cm, n_cores):
         """Calculate the covariance matrix across all trajectories.
 
         Parameters
         ----------
-        xtc_fn : list of str's
+        traj_fns : list of str's
             Paths to trajectories.
         top : md.Trajectory object
             Topology corresponding to the trajectories
@@ -370,12 +375,12 @@ class WhitenTraj:
         """
         pool = mp.Pool(processes=n_cores)
         f = functools.partial(self._get_c00_xtc, top=top, cm=cm)
-        result = pool.map_async(f, xtc_fns)
+        result = pool.map_async(f, traj_fns)
         result.wait()
         r = result.get()
         pool.close()        
 
-        c00_fns = np.sort(glob.glob(os.path.join(self.xtc_dir, "cov*.npy")))
+        c00_fns = np.sort(glob.glob(os.path.join(self.traj_dir, "cov*.npy")))
         c00 = np.sum(np.load(c00_fn) for c00_fn in c00_fns)
         c00 /= sum(r)
         assert isinstance(c00.flat[0], np.double)
@@ -455,13 +460,13 @@ class WhitenTraj:
         whitened = np.einsum('ij,aj->ai', wm, coords)
         return whitened
 
-    def _apply_whitening_xtc_fn(self, xtc_fn, top, outdir, wm, cm):
+    def _apply_whitening_traj_fn(self, traj_fn, top, outdir, wm, cm):
         """Apply data whitening to a trajectory file
 
 
         Parameters
         ----------
-        xtc_fn : str
+        traj_fn : str
             Path to trajectory
         top : md.Trajectory object
             Topology corresponding to the trajectories
@@ -472,25 +477,25 @@ class WhitenTraj:
         cm : np.ndarray, shape=(3*n_atoms,)
             Avg. center of mass of each atom across all trajectories.
         """
-        print("whiten", xtc_fn)
-        traj = md.load(xtc_fn, top=top)
+        print("whiten", traj_fn)
+        traj = md.load(traj_fn, top=top)
 
         n = len(traj)
         n_atoms = traj.top.n_atoms
         coords = traj.xyz.reshape((n, 3 * n_atoms))
         coords -= cm
         whitened = self.apply_whitening(coords, wm, cm)
-        dir, fn = os.path.split(xtc_fn)
+        dir, fn = os.path.split(traj_fn)
         new_fn = os.path.join(outdir, fn)
         traj = md.Trajectory(whitened.reshape((n, n_atoms, 3)), top)
         traj.save(new_fn)
 
-    def apply_whitening_xtc_dir(self,xtc_dir, top, wm, cm, n_cores, outdir):
+    def apply_whitening_traj_dir(self, traj_dir, top, wm, cm, n_cores, outdir):
         """Apply data whitening parallelized across many trajectories
 
         Parameters
         ----------
-        xtc_fn : list of str's
+        traj_dir : list of str's
             Paths to trajectories.
         top : md.Trajectory object
             Topology corresponding to the trajectories
@@ -503,11 +508,11 @@ class WhitenTraj:
         n_cores : int
             Number of threads to parallelize task across.
         """
-        xtc_fns = np.sort(glob.glob(os.path.join(xtc_dir, "*.xtc")))
+        traj_fns = np.sort(glob.glob(os.path.join(traj_dir, "*.*")))
 
         pool = mp.Pool(processes=n_cores)
-        f = functools.partial(self._apply_whitening_xtc_fn, top=top, outdir=outdir, wm=wm, cm=cm)
-        pool.map(f, xtc_fns)
+        f = functools.partial(self._apply_whitening_traj_fn, top=top, outdir=outdir, wm=wm, cm=cm)
+        pool.map(f, traj_fns)
         pool.close()
 
     def run(self):
@@ -516,15 +521,15 @@ class WhitenTraj:
            whitening matrix (wm.npy) and an unwhitening matrix (uwm.npy).
         """
         outdir = self.data_dir
-        whitened_dir = os.path.join(outdir,"whitened_xtcs")
+        whitened_dir = os.path.join(outdir,"whitened_trajs")
         mkdir(whitened_dir)
         n_cores = mp.cpu_count()
-        traj_fns = get_fns(self.xtc_dir, "*.xtc")
+        traj_fns = get_fns(self.traj_dir, "*.*")
         master = md.load(os.path.join(outdir,"master.pdb"))
-        c00 = self.get_c00_xtc_list(traj_fns, master.top, self.cm, n_cores)
+        c00 = self.get_c00_traj_list(traj_fns, master.top, self.cm, n_cores)
         c00_fn = os.path.join(outdir,"c00.npy")
         np.save(c00_fn, c00)
-        c00_fns = np.sort(glob.glob(os.path.join(self.xtc_dir, "cov*.npy")))
+        c00_fns = np.sort(glob.glob(os.path.join(self.traj_dir, "cov*.npy")))
         for fn in c00_fns:
             os.remove(fn)
         uwm, wm = self.get_wuw_mats(c00)

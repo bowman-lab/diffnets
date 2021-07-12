@@ -102,7 +102,11 @@ def preprocess_data(sim_dirs,pdb_fns,outdir,atom_sel=None,stride=1):
              'the same length')
 
     for vd,fn in zip(var_dir_names, var_pdb_fns):
-        traj_fns = get_fns(vd, "*.xtc")
+        traj_fns = get_fns(vd, "*.*")
+        if len(np.unique([i.split('.')[-1] for i in trajs])) != 1:
+                raise ImproperlyConfigured(
+                    f'All filenames in the trajectory directory should have the'
+                     'same extension (e.g. all .xtc files or all .h5 files) '
         n_traj = len(traj_fns)
         click.echo("Found %s trajectories in %s" % (n_traj,vd))
         if n_traj == 0:
@@ -177,13 +181,13 @@ def train(config):
                 f'Cannot find wm.npy in preprocessed data directory. Likely '
                  'need to re-run data preprocessing step.')
 
-    xtc_fns = os.path.join(data_dir,"aligned_xtcs")
-    data_fns = get_fns(xtc_fns,"*.xtc")
+    traj_fns = os.path.join(data_dir,"aligned_trajs")
+    data_fns = get_fns(traj_fns,"*.*")
     ind_fns = os.path.join(data_dir,"indicators")
     inds = get_fns(ind_fns,"*.npy")
     if (len(inds) != len(data_fns)) or len(inds)==0:
         raise ImproperlyConfigured(
-                f'Number of files in aligned_xtcs and indicators should be '
+                f'Number of files in aligned_trajs and indicators should be '
                   'equal. Likely need to re-run data preprocessing step.')
     last_indi = np.load(inds[-1])
   

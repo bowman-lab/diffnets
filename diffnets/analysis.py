@@ -52,8 +52,8 @@ class Analysis:
         """
         enc_dir = os.path.join(self.netdir, "encodings")
         utils.mkdir(enc_dir)
-        xtc_dir = os.path.join(self.datadir, "aligned_xtcs")
-        encode_dir(self.net, xtc_dir, enc_dir, self.top, self.n_cores, self.cm)
+        traj_dir = os.path.join(self.datadir, "aligned_trajs")
+        encode_dir(self.net, traj_dir, enc_dir, self.top, self.n_cores, self.cm)
 
     def recon_traj(self):
         """Reconstruct all trajectory frames using the trained neural 
@@ -79,8 +79,8 @@ class Analysis:
         reconstructed frames"""
         rmsd_fn = os.path.join(self.netdir, "rmsd.npy")
         recon_dir = os.path.join(self.netdir, "recon_trajs")
-        orig_xtc_dir = os.path.join(self.datadir, "aligned_xtcs")
-        rmsd = rmsd_dists_dir(recon_dir, orig_xtc_dir, self.top, self.n_cores)
+        orig_traj_dir = os.path.join(self.datadir, "aligned_trajs")
+        rmsd = rmsd_dists_dir(recon_dir, orig_traj_dir, self.top, self.n_cores)
         np.save(rmsd_fn, rmsd)
 
     def morph(self,n_frames=10):
@@ -264,27 +264,27 @@ def get_rmsd_dists(orig_traj, recon_traj):
     pairwise_rmsd = np.array(pairwise_rmsd)
     return pairwise_rmsd
 
-def _rmsd_dists_dir(recon_fn, orig_xtc_dir, ref_pdb):
+def _rmsd_dists_dir(recon_fn, orig_traj_dir, ref_pdb):
     recon_traj = md.load(recon_fn, top=ref_pdb.top)
     base_fn = os.path.split(recon_fn)[1]
-    orig_fn = os.path.join(orig_xtc_dir, base_fn)
+    orig_fn = os.path.join(orig_traj_dir, base_fn)
     orig_traj = md.load(orig_fn, top=ref_pdb.top)
     pairwise_rmsd = get_rmsd_dists(orig_traj, recon_traj)
     return pairwise_rmsd
 
-def rmsd_dists_dir(recon_dir, orig_xtc_dir, ref_pdb, n_cores):
+def rmsd_dists_dir(recon_dir, orig_traj_dir, ref_pdb, n_cores):
     recon_fns = utils.get_fns(recon_dir, "*.xtc")
 
     pool = mp.Pool(processes=n_cores)
-    f = functools.partial(_rmsd_dists_dir, orig_xtc_dir=orig_xtc_dir, ref_pdb=ref_pdb)
+    f = functools.partial(_rmsd_dists_dir, orig_traj_dir=orig_traj_dir, ref_pdb=ref_pdb)
     res = pool.map(f, recon_fns)
     pool.close()
 
     pairwise_rmsd = np.concatenate(res)
     return pairwise_rmsd
 
-def _encode_dir(xtc_fn, net, outdir, top, cm):
-    traj = md.load(xtc_fn, top=top)
+def _encode_dir(traj_fn, net, outdir, top, cm):
+    traj = md.load(traj_fn, top=top)
     n = len(traj)
     n_atoms = traj.top.n_atoms
     x = traj.xyz.reshape((n, 3*n_atoms))-cm
@@ -300,12 +300,12 @@ def _encode_dir(xtc_fn, net, outdir, top, cm):
     new_fn = os.path.join(outdir, new_fn)
     np.save(new_fn, output)
 
-def encode_dir(net, xtc_dir, outdir, top, n_cores, cm):
-    xtc_fns = utils.get_fns(xtc_dir, "*.xtc")
+def encode_dir(net, traj_dir, outdir, top, n_cores, cm):
+    traj_fns = utils.get_fns(traj_dir, "*.*")
 
     pool = mp.Pool(processes=n_cores)
     f = functools.partial(_encode_dir, net=net, outdir=outdir, top=top, cm=cm)
-    pool.map(f, xtc_fns)
+    pool.map(f, traj_fns)
     pool.close()
 
 def morph_label(net,nn_dir,data_dir,n_frames=10):
