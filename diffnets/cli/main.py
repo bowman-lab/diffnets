@@ -182,7 +182,7 @@ def train(config):
                  'need to re-run data preprocessing step.')
 
     traj_fns = os.path.join(data_dir,"aligned_trajs")
-    data_fns = get_fns(traj_fns,"*.*")
+    data_fns = get_fns(traj_fns,"*.xtc")
     ind_fns = os.path.join(data_dir,"indicators")
     inds = get_fns(ind_fns,"*.npy")
     if (len(inds) != len(data_fns)) or len(inds)==0:
@@ -247,11 +247,11 @@ def train(config):
                 f'Indices chosen for a split autoencoder architecture '
                  '(close_inds_fn), but  a split autoencoder architecture '
                  'was not chosen (nntype)')
-
+    
     if not os.path.exists(job['outdir']):
         cmd = "mkdir %s" % job['outdir']
         os.system(cmd)
-        shutil.copyfile(config,os.path.join(job['outdir'],config))
+        shutil.copyfile(config,os.path.join(job['outdir'],"train.yml"))
         #raise ImproperlyConfigured(
         #        f'outdir already exists. Rename and try again. ')
 
