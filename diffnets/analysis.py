@@ -295,13 +295,13 @@ def _encode_dir(traj_fn, net, outdir, top, cm):
     else:
         output = net.encode(x)
     output = output.detach().numpy()
-    new_fn = os.path.split(xtc_fn)[1]
+    new_fn = os.path.split(traj_fn)[1]
     new_fn = os.path.splitext(new_fn)[0] + ".npy"
     new_fn = os.path.join(outdir, new_fn)
     np.save(new_fn, output)
 
 def encode_dir(net, traj_dir, outdir, top, n_cores, cm):
-    traj_fns = utils.get_fns(traj_dir, "*.*")
+    traj_fns = utils.get_fns(traj_dir, "*.xtc")
 
     pool = mp.Pool(processes=n_cores)
     f = functools.partial(_encode_dir, net=net, outdir=outdir, top=top, cm=cm)
