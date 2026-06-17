@@ -1,0 +1,20 @@
+name: diffnets
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - numpy
+  - mdtraj
+  - scipy
+  - cython
+  - pytest
+  - matplotlib
+  - pandas
+  - pyyaml
+  - scikit-learn
+  - mpi4py
+  - pip
+  - pip:
+      - torch --index-url https://download.pytorch.org/whl/cu121
+      - torchvision --index-url https://download.pytorch.org/whl/cu121
+      - torchaudio --index-url https://download.pytorch.org/whl/cu121
