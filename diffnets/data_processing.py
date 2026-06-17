@@ -5,7 +5,6 @@ import glob
 from .utils import *
 import pickle
 from collections import defaultdict
-
 import numpy as np
 import mdtraj as md
 from scipy.linalg import inv, sqrtm

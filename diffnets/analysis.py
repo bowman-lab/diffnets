@@ -2,6 +2,7 @@ import mdtraj as md
 import numpy as np
 import itertools
 from . import utils
+from .data_processing import WhitenTraj
 import multiprocessing as mp
 import os
 import functools
@@ -11,17 +12,11 @@ from scipy import stats
 from scipy.stats import pearsonr
 from sklearn.metrics import roc_auc_score, roc_curve
 import matplotlib.pyplot as plt
-import enspara
 import enspara.cluster as cluster
 import enspara.info_theory as infotheor
 import enspara.msm as msm
-import enspara.cluster as cluster
-import enspara.info_theory as infotheor
 import pickle
 import scipy.sparse
-import sys
-from pylab import *
-from torch.autograd import Variable
 from collections import defaultdict
 
 class Analysis:
@@ -487,7 +482,7 @@ def calc_overlap(d1, d2, bins):
         ent2[i] = infotheor.shannon_entropy(p2)
     return js, ent1, ent2
 
-def project(enc, lab, vars, i1, i2, bins, my_title, cutoff=0.8):
+def project(enc, lab, vars, i1, i2, n_bins, my_title, cutoff=0.8):
     subsample = 100
 
     all_act_inds = np.where(lab>cutoff)[0]
@@ -537,7 +532,7 @@ def project(enc, lab, vars, i1, i2, bins, my_title, cutoff=0.8):
 
     height = 4
     width = height*n_vars
-    fig = figure(figsize=(width, height))
+    fig = plt.figure(figsize=(width, height))
     fig.suptitle(my_title)
     bins = 20
     dot_size = 0.1
@@ -556,8 +551,8 @@ def project(enc, lab, vars, i1, i2, bins, my_title, cutoff=0.8):
         #imshow(h, interpolation='bilinear', aspect='auto', origin='low', extent=[x[0]+delta_x, x[-1]+delta_x, y[0]+delta_y, y[-1]+delta_y], vmin=cmin-cmax, vmax=0, cmap=get_cmap('Blues_r'))
         # transpose to put first dimension (i1) on x axis
         #imshow(h.T, interpolation='bilinear', aspect='auto', origin='low', extent=[y[0]+delta_y, y[-1]+delta_y, x[0]+delta_x, x[-1]+delta_x], vmin=cmin-cmax, vmax=0, cmap=get_cmap('Blues_r'))
-        imshow(h.T, interpolation='bilinear', aspect='auto', origin='low', extent=[x[0]+delta_x, x[-1]+delta_x, y[0]+delta_y, y[-1]+delta_y], vmin=cmin-cmax, vmax=0, cmap=get_cmap('Blues_r'))
-        colorbar()
+        plt.imshow(h.T, interpolation='bilinear', aspect='auto', origin='low', extent=[x[0]+delta_x, x[-1]+delta_x, y[0]+delta_y, y[-1]+delta_y], vmin=cmin-cmax, vmax=0, cmap=plt.get_cmap('Blues_r'))
+        plt.colorbar()
         
         lines = []
         line_labels = []
@@ -568,7 +563,7 @@ def project(enc, lab, vars, i1, i2, bins, my_title, cutoff=0.8):
             i2_std = i2_dict[v2].std()
             #print(v, "x", i1_mu, i1_std)
             #print(v, "y", i2_mu, i2_std)
-            line, _, _ = errorbar([i1_mu], [i2_mu], xerr=[i1_std], yerr=[i2_std], label=v2)
+            line, _, _ = plt.errorbar([i1_mu], [i2_mu], xerr=[i1_std], yerr=[i2_std], label=v2)
             lines.append(line)
             line_labels.append(v2)
 
@@ -579,17 +574,17 @@ def project(enc, lab, vars, i1, i2, bins, my_title, cutoff=0.8):
             # if inds.shape[0] > 0:
             #     scatter(i1_dict[v2][inds], i2_dict[v2][inds], s=dot_size, c='k')
 
-        line, _, _ = errorbar([act_i1_mu], [act_i2_mu], xerr=[act_i1_std], yerr=[act_i2_std], label='act', ecolor='k', fmt='k')
+        line, _, _ = plt.errorbar([act_i1_mu], [act_i2_mu], xerr=[act_i1_std], yerr=[act_i2_std], label='act', ecolor='k', fmt='k')
         lines.append(line)
         line_labels.append('act')
         #legend()
 
-        title(v)
+        plt.title(v)
     # scatter([0], [0], s=dot_size*10, c='k')
     # scatter([6], [0], s=dot_size*10, c='k')
     # scatter([6], [6], s=dot_size*10, c='k')
     fig.legend(lines, line_labels)
-    show()
+    plt.show()
 
 def morph_conditional(nn_dir, data_dir, n_frames=10):
     net = pickle.load(open("%s/nn_best_polish.pkl" % nn_dir, 'rb'))
@@ -601,7 +596,7 @@ def morph_conditional(nn_dir, data_dir, n_frames=10):
     uwm = np.load(uwm_fn)
     cm_fn = os.path.join(data_dir, "cm.npy")
     cm = np.load(cm_fn)
-    enc = load_npy_dir(os.path.join(nn_dir, "encodings"), "*npy")
+    enc = utils.load_npy_dir(os.path.join(nn_dir, "encodings"), "*npy")
     n_latent = int(enc.shape[1])
     morph_dir = os.path.join(nn_dir, "morph")
     if not os.path.exists(morph_dir):
@@ -633,7 +628,7 @@ def morph_conditional(nn_dir, data_dir, n_frames=10):
             print("single")
             outputs = net.decode(morph_enc)
         outputs = outputs.data.numpy()
-        coords = whiten.apply_unwhitening(outputs, uwm, cm)
+        coords = WhitenTraj.apply_unwhitening(outputs, uwm, cm)
         print("shape", coords.shape)
         recon_trj = md.Trajectory(coords.reshape((n_frames, n_atoms, 3)), ref_s.top)
         out_fn = os.path.join(morph_dir, "m%d.pdb" % i)
@@ -649,7 +644,7 @@ def morph_cond_mean(nn_dir,data_dir,n_frames=10):
     uwm = np.load(uwm_fn)
     cm_fn = os.path.join(data_dir, "cm.npy")
     cm = np.load(cm_fn)
-    enc = load_npy_dir(os.path.join(nn_dir, "encodings"), "*npy")
+    enc = utils.load_npy_dir(os.path.join(nn_dir, "encodings"), "*npy")
     n_latent = int(enc.shape[1])
     morph_dir = os.path.join(nn_dir, "morph_bin_mean")
     if not os.path.exists(morph_dir):
@@ -677,7 +672,7 @@ def morph_cond_mean(nn_dir,data_dir,n_frames=10):
         traj = utils.recon_traj(morph_enc,net,ref_s.top,cm)
         rmsf = get_rmsf(traj)
 
-        out_fn = os.path.join(outdir, "m%d.pdb" % i)
+        out_fn = os.path.join(morph_dir, "m%d.pdb" % i)
         traj.save_pdb(out_fn, bfactors=rmsf)
 
 def morph_std(nn_dir, data_dir, enc):
@@ -762,8 +757,8 @@ def get_act_inact(nn_dir, data_dir, enc, labels):
     np.save(out_fn, inact_rmsf)
 
     #all_h, x = common_hist([act_rmsf, inact_rmsf], ['act', 'inact'], 20)
-    fig = figure(figsize=(4, 8))
-    title
+    fig = plt.figure(figsize=(4, 8))
+    plt.title
     #plot(x, all_h['act'], label='act')
     #plot(x, all_h['inact'], label='inact')
     res_nums = []
@@ -772,16 +767,16 @@ def get_act_inact(nn_dir, data_dir, enc, labels):
         res_nums.append(r.resSeq)
 
     ax = fig.add_subplot(211)
-    plot(res_nums, act_rmsf, label='act')
-    plot(res_nums, inact_rmsf, label='inact')
-    legend()
+    plt.plot(res_nums, act_rmsf, label='act')
+    plt.plot(res_nums, inact_rmsf, label='inact')
+    plt.legend()
 
     ax = fig.add_subplot(212)
     d = act_rmsf-inact_rmsf
-    plot(res_nums, d, 'k')
+    plt.plot(res_nums, d, 'k')
     out_fn = os.path.join(outdir, "act_minus_inact.npy")
     np.save(out_fn, d)
-    show()
+    plt.show()
 
     out_fn = os.path.join(outdir, "act_minus_inact.pdb")
     ref_s = ref_s.atom_slice(ca_inds)
@@ -801,15 +796,15 @@ def enc_corr(enc):
 def project_act(lab_v, vars, my_title):
     n_vars = len(vars)
     print(my_title)
-    fig = figure(figsize=(4, 4))
+    fig = plt.figure(figsize=(4, 4))
     fig.suptitle(my_title)
     for i in range(n_vars):
         v = vars[i]
         n, x = np.histogram(lab_v[v], range=(0, 1), bins=50)
-        plot(x[:-1], n, label=v)
+        plt.plot(x[:-1], n, label=v)
         print(v, lab_v[v].mean())
-    legend()
-    show()
+    plt.legend()
+    plt.show()
 
 
 def check_loss(nn_dir):
@@ -817,14 +812,14 @@ def check_loss(nn_dir):
     fn = os.path.join(nn_dir, "test_loss_%d.npy" % i)
     while os.path.exists(fn):
         d = np.load(fn)
-        plot(d, label=str(i))
+        plt.plot(d, label=str(i))
         i += 1
         fn = os.path.join(nn_dir, "test_loss_%d.npy" % i)
     fn = os.path.join(nn_dir, "test_loss_polish.npy")
-    d = load(fn)
-    plot(d, label='p')
-    legend()
-    show()
+    d = np.load(fn)
+    plt.plot(d, label='p')
+    plt.legend()
+    plt.show()
 
 def clust_encod(nn_dir, n_clusters, vars, lag_times,n_traj_per_var):
     msm_dir = os.path.join(nn_dir, "msm_%d" % n_clusters)
@@ -845,7 +840,7 @@ def clust_encod(nn_dir, n_clusters, vars, lag_times,n_traj_per_var):
 
     height = 4
     width = height*n_vars
-    fig = figure(figsize=(width, height))
+    fig = plt.figure(figsize=(width, height))
     fig.suptitle(nn_dir)
     for i in range(n_vars):
         v = vars[i]
@@ -859,8 +854,8 @@ def clust_encod(nn_dir, n_clusters, vars, lag_times,n_traj_per_var):
 
         ax = fig.add_subplot(1, n_vars, i+1, aspect='auto')
         for i, t in enumerate(lag_times):
-            scatter(t*np.ones(imp_times.shape[1]), imp_times[i])
-        title(v)
+            plt.scatter(t*np.ones(imp_times.shape[1]), imp_times[i])
+        plt.title(v)
         ax.set_yscale('log')
 
         markov_lag = 10
@@ -875,7 +870,7 @@ def clust_encod(nn_dir, n_clusters, vars, lag_times,n_traj_per_var):
         C_fn = os.path.join(msm_dir, "%s_C_norm_lag%d.npy" % (v, markov_lag))
         np.save(C_fn, C)
     out_fn = os.path.join(msm_dir, "imp_times.png")
-    savefig(out_fn)
-    show()
+    plt.savefig(out_fn)
+    plt.show()
 
 

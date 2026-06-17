@@ -1,13 +1,11 @@
 import os
 import pickle
-import sys
 import multiprocessing as mp
 import mdtraj as md
 import numpy as np
-from . import exmax, nnutils, utils, data_processing
+from . import exmax, nnutils, utils
 import copy
 import pickle
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
