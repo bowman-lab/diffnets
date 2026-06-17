@@ -13,6 +13,7 @@ dependencies:
   - pyyaml
   - scikit-learn
   - mpi4py
+  - click
   - pip
   - pip:
       - torch --index-url https://download.pytorch.org/whl/cu121
