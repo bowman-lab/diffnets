@@ -5,7 +5,8 @@ Derivative work is not permited without prior written authorization.
 All other rights reserved.
 """
 
-from scipy import inf, asarray, array, rand, zeros, prod, where, allclose
+#from scipy import inf, asarray, array, rand, zeros, prod, where, allclose
+import numpy as np
 from scipy.stats import pearsonr
 
 def distribution_of_sum(P, ignore_idx=set()):
@@ -22,19 +23,19 @@ def distribution_of_sum(P, ignore_idx=set()):
     >>> P = [0.5, 0.25, 0.5]
 
     >>> distribution_of_sum(P)
-    array([ 0.1875,  0.4375,  0.3125,  0.0625])
+    np.array([ 0.1875,  0.4375,  0.3125,  0.0625])
 
     Ignoring the 2nd (1 in zero indexing) variable, we have...
     >>> distribution_of_sum(P, [1]) 
-    array([ 0.25,  0.5 ,  0.25,  0.  ])
+    np.array([ 0.25,  0.5 ,  0.25,  0.  ])
     """
-    P = asarray(P)
-    N = P.shape[0]
+    P = np.asarray(P)
+    N = np.shape(P)[0]
     P1 = 1 - P #convenience variable that is 1 minus P
 
     #starting distribution of the sum (no variables in summation) is D[0] = 1 and D[>0] = 0
     #in otherwords, we know the sum is zero.
-    D = zeros(N + 1)
+    D = np.zeros(N + 1)
     D[0] = 1
 
 
@@ -62,7 +63,7 @@ def expectation_range_CUBIC(P, lower, upper):
     Output is a vector E of expectations.
     O(N^3) time in length of P
 
-    >>> R = rand(10)  # a random vector of probabilities 10 elements long.
+    >>> R = np.random.rand(10)  # a random vector of probabilities 10 elements long.
     >>>
     >>> lower, upper = 3, 6
     >>>
@@ -75,9 +76,9 @@ def expectation_range_CUBIC(P, lower, upper):
     
     This shows that both versions yield results that are > 99% correlated.
     """
-    P = asarray(P)
-    N = P.shape[0]
-    E = zeros(N)
+    P = np.asarray(P)
+    N = np.shape(P)[0]
+    E = np.zeros(N)
     if upper == 0:
         return E
 
@@ -111,10 +112,10 @@ def expectation_range_EXP(P, lower, upper):
     This version suffers from floating point error, and should not be used
     for anything other than testing.
     """
-    P = asarray(P)
-    N = P.shape[0]
+    P = np.asarray(P)
+    N = np.shape(P)[0]
     P1 = 1 - P
-    E = zeros(N)
+    E = np.zeros(N)
     if upper == 0:
         return E
 
@@ -127,9 +128,9 @@ def expectation_range_EXP(P, lower, upper):
         if SUM >= upper or SUM <= lower:
             continue #skip the vectors without the right sum
                 
-        S = array(S)
+        S = np.array(S)
         
-        p = prod(where(S, P, P1)) #probability of S according to P
+        p = np.prod(np.where(S, P, P1)) #probability of S according to P
 
         E += p * S #summing up this vector's contribution to the final expectation
         D += p #sum up this contribution to the denominator
@@ -147,7 +148,7 @@ def expectation_or_LINEAR(P, E_or):
 
     All the implementations should produce the same results.
 
-    >>> R = rand(10)
+    >>> R = np.random.rand(10)
     >>>
     >>> EL = expectation_or_LINEAR(R, 1)
     >>> EC = expectation_or_CUBIC(R, 1)
@@ -157,7 +158,7 @@ def expectation_or_LINEAR(P, E_or):
     >>> correlation > .99 and pvalue < .01
     True
 
-    >>> allclose(EL, EE)
+    >>> np.allclose(EL, EE)
     True
     >>> correlation, pvalue = pearsonr(EL, EE)
     >>> correlation > .99 and pvalue < .01
@@ -172,7 +173,7 @@ def expectation_or_LINEAR(P, E_or):
     >>> expectation_or([0.5, 0.5], .75)
     array([ 0.5,  0.5])
     """
-    P = asarray(P)
+    P = np.asarray(P)
     # boundary case that is easy to compuate and would cause problems if we
     # let it pass through
     if any(P == 1):
@@ -182,7 +183,7 @@ def expectation_or_LINEAR(P, E_or):
     # others
     P1 = P
     # probability of failure at this index, but success at one or more others
-    P0 = (1 - prod(1 - P) / (1 - P)) * (1 - P)
+    P0 = (1 - np.prod(1 - P) / (1 - P)) * (1 - P)
     # given that at least one is success, what is the probability of success
     # for this index
     PS = P1 / (P1 + P0)
@@ -201,7 +202,7 @@ def expectation_or_CUBIC(P, E_or):
     alternate, equivalent implementation for error checking
     the problem with this implementation is that it is O(N^3) time
     """
-    return expectation_range(P, 1, inf) * E_or
+    return expectation_range(P, 1, np.inf) * E_or
 
 
 def expectation_E_EXP(P, E_or):
@@ -215,16 +216,16 @@ def expectation_E_EXP(P, E_or):
     alternate, equivalent implementation for error checking
     the problem with this implementation is that it is exponential time
     """
-    P = asarray(P)
+    P = np.asarray(P)
     P1 = 1 - P
-    N = P.shape[0]
-    E = zeros(N)
+    N = np.shape(P)[0]
+    E = np.zeros(N)
     import itertools
     for S in itertools.product(*tuple([[1, 0]] * N)): #iterate over all binary vectors of length N
-        S = array(S)
-        p = prod(where(S, P, P1)) #compute the probability according to P of vector
+        S = np.array(S)
+        p = np.prod(np.where(S, P, P1)) #compute the probability according to P of vector
         E += p * S #accumulate the probability-weighted average
-    E = E * E_or / (1 - prod(P1)) #divide by the probability of getting at least 1 success and multiply times E_or
+    E = E * E_or / (1 - np.prod(P1)) #divide by the probability of getting at least 1 success and multiply times E_or
     return E
 
 
