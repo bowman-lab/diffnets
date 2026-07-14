@@ -3,11 +3,10 @@ import functools
 import pickle
 import multiprocessing as mp
 import glob
-
+import click
 import numpy as np
 import mdtraj as md
 import torch
-import click
 
 
 class ImproperlyConfigured(Exception):

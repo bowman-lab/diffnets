@@ -2,12 +2,12 @@
 import pickle
 import os
 import shutil
-import click
 import yaml
 import multiprocessing as mp
 #third-party libraries
 import numpy as np
 import mdtraj as md
+import click
 #diffnets libraries
 from diffnets.analysis import Analysis
 from diffnets.data_processing import ProcessTraj, WhitenTraj

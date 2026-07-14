@@ -259,7 +259,7 @@ class ProcessTraj:
             data = traj.xyz.astype(np.double).reshape((len(traj),3*self.master.top.n_atoms))
             data -= cm
             for d in data:
-                frame = torch.from_numpy(d).type(torch.FloatTensor)
+                frame = torch.from_numpy(d).float()
                 torch.save(frame,os.path.join(ex_dir,"ID-%s.pt" % i))
                 i+=1
 
