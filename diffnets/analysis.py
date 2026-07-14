@@ -12,9 +12,9 @@ from scipy import stats
 from scipy.stats import pearsonr
 from sklearn.metrics import roc_auc_score, roc_curve
 import matplotlib.pyplot as plt
-import enspara.enspara.cluster as cluster
-import enspara.enspara.info_theory as infotheor
-import enspara.enspara.msm as msm
+import enspara.cluster as cluster
+import enspara.info_theory as infotheor
+import enspara.msm as msm
 import pickle
 import scipy.sparse
 from collections import defaultdict

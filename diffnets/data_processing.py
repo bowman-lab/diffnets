@@ -154,7 +154,7 @@ class ProcessTraj:
 
         traj_fn, top_fn, traj_num, var_ind = inputs
 
-        if traj_num is 0:
+        if traj_num == 0:
             print("Processing", traj_num, traj_fn, top_fn)
         else:
             print("on traj", traj_num)
@@ -165,7 +165,7 @@ class ProcessTraj:
         else:
             traj = md.load(traj_fn, top=top_fn, stride=self.stride)
 
-        if traj_num is 0:
+        if traj_num == 0:
             print("Selecting inds")
 
         if isinstance(self.atom_sel, list) or type(self.atom_sel)==np.ndarray:
@@ -182,17 +182,17 @@ class ProcessTraj:
         traj = traj.atom_slice(inds)
     
         # align to master
-        if traj_num is 0:
+        if traj_num == 0:
             print("Superposing")
         traj = traj.superpose(self.master, parallel=False)
         
         # save traj and its center of mass
-        if traj_num is 0:
+        if traj_num == 0:
             print("Saving xtc")
         
         new_traj_fn = os.path.join(self.xtc_dir, str(traj_num).zfill(6) + ".xtc")
         traj.save(new_traj_fn)
-        if traj_num is 0:
+        if traj_num == 0:
             print("Getting/saving CM")
         n = len(traj)
         cm = traj.xyz.astype(np.double).reshape((n, 3*traj.top.n_atoms)).mean(axis=0)
