@@ -375,7 +375,7 @@ class WhitenTraj:
         pool.close()        
 
         c00_fns = np.sort(glob.glob(os.path.join(self.xtc_dir, "cov*.npy")))
-        c00 = np.sum(np.load(c00_fn) for c00_fn in c00_fns)
+        c00 = np.sum([np.load(c00_fn) for c00_fn in c00_fns], axis=0)
         c00 /= sum(r)
         assert isinstance(c00.flat[0], np.double)
         return c00
@@ -402,7 +402,7 @@ class WhitenTraj:
         # return uwm, wm
 
         # Updated implementation
-        e, v = torch.symeig(torch.from_numpy(c00).double(), eigenvectors=True)
+        e, v = torch.linalg.eigh(torch.from_numpy(c00).double(), UPLO='U')
         # In valid covariance matrix the smallest eigenvalue should be positive
         # because the covariance matrix is a positive semidefinite matrix
         # https://stats.stackexchange.com/questions/52976/is-a-sample-covariance-matrix-always-symmetric-and-positive-definite
