@@ -6,7 +6,6 @@ from .data_processing import WhitenTraj
 import multiprocessing as mp
 import os
 import functools
-from torch.autograd import Variable
 import torch
 from scipy import stats
 from scipy.stats import pearsonr
@@ -40,7 +39,7 @@ class Analysis:
         self.top = md.load(os.path.join(
                            self.datadir, "master.pdb"))
         self.cm = np.load(os.path.join(self.datadir, "cm.npy"))
-        self.n_cores = mp.cpu_count()
+        self.n_cores = int(os.environ.get('SLURM_NPROCS', 1))
 
     def encode_data(self):
         """Calculate the latent space for all trajectory frames.
@@ -199,7 +198,7 @@ def euc_dist(trj, frame):
 def recon_traj(enc, net, top, cm):
     n = len(enc)
     n_atoms = top.n_atoms
-    x = Variable(torch.from_numpy(enc).type(torch.FloatTensor))
+    x = torch.from_numpy(enc).to(torch.float32)
     coords = net.decode(x)
     coords = coords.detach().numpy()
     coords += cm
@@ -230,7 +229,7 @@ def _calc_labels(enc_fn, net, label_dir):
     if hasattr(net,"split_inds"):
         x = net.encoder1[-1].out_features
         enc = enc[:,:x]
-    enc = Variable(torch.from_numpy(enc).type(torch.FloatTensor))
+    enc = torch.from_numpy(enc).to(torch.float32)
     labels = net.classify(enc)
     labels = labels.detach().numpy()
 
@@ -283,7 +282,7 @@ def _encode_dir(xtc_fn, net, outdir, top, cm):
     n = len(traj)
     n_atoms = traj.top.n_atoms
     x = traj.xyz.reshape((n, 3*n_atoms))-cm
-    x = Variable(torch.from_numpy(x).type(torch.FloatTensor))
+    x = torch.from_numpy(x).to(torch.float32)
     if hasattr(net, 'split_inds'):
         lat1, lat2 = net.encode(x)
         output = torch.cat((lat1,lat2),1)
@@ -411,13 +410,13 @@ def find_features(net,data_dir,nn_dir,clust_cents,inds,out_fn,num2plot=100):
 def calc_auc(net_fn,out_fn,data,labels):
     net = pickle.load(open(net_fn, 'rb'))
     net.cpu()
-    full_x = torch.from_numpy(data).type(torch.FloatTensor)
+    full_x = torch.from_numpy(data).to(torch.float32)
     if hasattr(net, "encode"):
-        full_x = Variable(full_x.view(-1, 784).float())
+        full_x = full_x.view(-1, 784).float()
         pred_x, latents, pred_class = net(full_x)
         preds = pred_class.detach().numpy()
     else:
-        full_x = Variable(full_x.view(-1, 3,32,32).float())
+        full_x = full_x.view(-1, 3,32,32).float().requires_grad_()
         preds = net(full_x).detach().numpy()
     fpr, tpr, thresh = roc_curve(labels,preds)
     auc = roc_auc_score(labels,preds.flatten())
@@ -621,7 +620,8 @@ def morph_conditional(nn_dir, data_dir, n_frames=10):
             # fix ref latent variable to val
             morph_enc[j, i] = val
 
-        morph_enc = Variable(torch.from_numpy(morph_enc).type(torch.FloatTensor))
+        morph_enc = torch.from_numpy(morph_enc).to(torch.float32)
+        morph_enc.requires_grad_()
         try:
             outputs, labs = net.decode(morph_enc)
         except:
@@ -668,7 +668,8 @@ def morph_cond_mean(nn_dir,data_dir,n_frames=10):
             # fix ref latent variable to val
             morph_enc[j, i] = val
 
-        morph_enc = Variable(torch.from_numpy(morph_enc).type(torch.FloatTensor))
+        morph_enc = torch.from_numpy(morph_enc)
+        morph_enc.requires_grad_()
         traj = utils.recon_traj(morph_enc,net,ref_s.top,cm)
         rmsf = get_rmsf(traj)
 

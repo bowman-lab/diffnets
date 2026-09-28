@@ -222,7 +222,7 @@ class ProcessTraj:
         # If you use 20 cores to load in 20 trajectories at a time
         # make sure the node has enough memory for all 20 trajectories
         # or your job might stall without crashing :/
-        n_cores = mp.cpu_count()
+        n_cores = int(os.environ.get('SLURM_NPROCS', 1))
         pool = mp.Pool(processes=n_cores)
         f = functools.partial(self._preprocess_traj)
         result = pool.map_async(f, inputs)
@@ -517,7 +517,7 @@ class WhitenTraj:
         outdir = self.data_dir
         whitened_dir = os.path.join(outdir,"whitened_xtcs")
         mkdir(whitened_dir)
-        n_cores = mp.cpu_count()
+        n_cores = int(os.environ.get('SLURM_NPROCS', 1))
         traj_fns = get_fns(self.xtc_dir, "*.xtc")
         master = md.load(os.path.join(outdir,"master.pdb"))
         c00 = self.get_c00_xtc_list(traj_fns, master.top, self.cm, n_cores)

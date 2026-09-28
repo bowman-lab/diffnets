@@ -1,5 +1,4 @@
 import os
-import sys
 import pickle
 import multiprocessing as mp
 import mdtraj as md
@@ -10,7 +9,6 @@ import pickle
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.autograd import Variable
 from torch.utils import data as torch_data
 
 class Dataset(torch_data.Dataset):
@@ -33,7 +31,7 @@ class Dataset(torch_data.Dataset):
             # Load data and get label
             X = torch.load(self.data + "/ID-%s" % ID + '.pt')
         else: 
-            X = torch.from_numpy(self.data[ID]).type(torch.FloatTensor)
+            X = torch.from_numpy(self.data[ID]).to(torch.float32)
         y = self.labels[ID]
         
         return X, y, ID
@@ -197,8 +195,8 @@ class Trainer:
 
         for i in range(n_vars):
             inds = np.where(indicators == i)[0]
-            lower = np.int(np.floor(em_bounds[i, 0] * inds.shape[0]))
-            upper = np.int(np.ceil(em_bounds[i, 1] * inds.shape[0]))
+            lower = int(np.floor(em_bounds[i, 0] * inds.shape[0]))
+            upper = int(np.ceil(em_bounds[i, 1] * inds.shape[0]))
             cur_labels[inds] = exmax.expectation_range_CUBIC(cur_labels[inds], lower, upper).reshape(cur_labels[inds].shape)
 
         bad_inds = np.where(np.isnan(cur_labels))
