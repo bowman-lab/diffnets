@@ -12,27 +12,61 @@ Supervised and self-supervised autoencoders to identify the mechanistic basis fo
 
 If you use 'DiffNets' for published research, please cite us:
 
-M.D. Ward, M.I. Zimmerman, S. Swamidass, G.R. Bowman. [DiffNets: Self-supervised deep learning to identify the mechanistic basis for biochemical differences between protein variants.](https://www.biorxiv.org/content/10.1101/2020.07.01.182725v1) bioRxiv. DOI: 10.1101/2020.07.01.182725, 2020.
+M.D. Ward, M.I. Zimmerman, A. Meller, M. Chung, S. J. Swamidass, G.R. Bowman. [Deep learning the structural determinants of protein biochemical properties by comparing structural ensembles with DiffNets.](https://www.nature.com/articles/s41467-021-23246-1) Nat Commun. DOI: 10.1038/s41467-021-23246-1.
 
 ## Dependencies
 
--python 3.6
+-python >=3.11
 
--scipy, sklearn
+-scikit-learn
 
--enspara -> which requires (MDTraj=1.8,numpy=1.14,cython, mpi4py)
+-pyyaml
 
--pytorch
+-pytest
+
+-click
+
+-pytorch + torchvision
+
+-enspara -> which requires (numpy, mdtraj, scipy, cython, pandas, matplotlib, mpi4py)
 
 ## Recommended Installation
 
-Follow line-by-line instructions [here.](https://diffnets.readthedocs.io/en/latest/Installation.html)
+Follow line-by-line instructions [here.](https://diffnets.readthedocs.io/en/latest/Installation.html) (Note: The docs need to be updated - follow install instructions below)
 
-While the above install should be simple to follow, a more concise install is in the works.
+Create a new conda environment and activate it:
+```bash
+conda create -n diffnets python=3.12
+conda activate diffnets
+```
+
+DiffNets is currently built on top of enspara, so you will need to install that first:
+```bash
+cd /path/for/packages
+git clone https://github.com/bowman-lab/enspara
+cd enspara
+pip install -e .
+```
+This will also bundle most of the dependencies that DiffNets requires.
+
+Next, install pytorch and mpi4py:
+```bash
+env MPICC=/path/to/mpi/implementation/mpicc pip install --no-cache-dir --no-binary=mpi4py mpi4py
+pip install torch==2.13.0 torchvision==0.28.0 --index-url https://download.pytorch.org/whl/cu126
+```
+
+Now you can clone the repo and install DiffNets:
+```bash
+cd /path/for/packages
+git clone https://github.com/bowman-lab/diffnets
+cd diffnets
+pip install -e .
+```
+
 
 ## Building the docs / Running the tests
 
-DiffNets uses sphinx for documentation. They are a work in progress, but can be found [here.](https://diffnets.readthedocs.io/en/latest/)
+DiffNets uses sphinx for documentation, located [here.](https://diffnets.readthedocs.io/en/latest/)
 
 ## Running the tests
 
