@@ -1,0 +1,55 @@
+[build-system]
+requires = [
+    "setuptools>=64",
+    "wheel",
+    "cython>=0.24",
+    "numpy>=2.3.0",
+    "Jinja2>=3"
+]
+
+[project]
+name = "diffnets"
+version = "0.1.0"
+description = "Supervised and self-supervised autoencoders to identify the mechanistic basis for biochemical differences between protein variants."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [
+    { name = "M. D. Ward" },
+    { name = "S. J. Swamidass" },
+    { name = "G. R. Bowman", email = "grbowman@seas.upenn.edu" }
+]
+classifiers = [
+    "Development Status :: 1 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Programming Language :: Cython",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Operating System :: POSIX",
+    "Operating System :: Unix"
+]
+dependencies = [
+    "Cython>=0.24",
+    "numpy>=2.3.0",
+    "tables>=3.2",
+    "matplotlib>=1.5.1",
+    "mdtraj>=1.7",
+    "psutil>=5.2.2",
+    "pandas",
+    "scikit-learn>=0.23.2",
+    "scipy>=0.17",
+    "pyyaml"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest"
+]
+docs = [
+    "Sphinx>=2.3.0",
+    "sphinx-rtd-theme>=0.4.3",
+    "sphinxcontrib-websupport>=1.1.2",
+    "numpydoc>=0.9.1"
+]
