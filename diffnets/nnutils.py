@@ -83,22 +83,22 @@ class split_ae(nn.Module):
             learned in this previous networks encoder will be frozen in the
             new network.
         """
-        vwm = Variable(torch.from_numpy(self.wm1).type(torch.FloatTensor))
+        vwm = torch.from_numpy(self.wm1).to(torch.float32).requires_grad_()
         self.encoder1[0].weight.data = vwm
-        vz = Variable(torch.from_numpy(np.zeros(len(self.inds1))).type(torch.FloatTensor))
+        vz = torch.from_numpy(np.zeros(len(self.inds1))).to(torch.float32).requires_grad_()
         self.encoder1[0].bias.data = vz
-        vwm2 = Variable(torch.from_numpy(self.wm2).type(torch.FloatTensor))
+        vwm2 = torch.from_numpy(self.wm2).to(torch.float32).requires_grad_()
         self.encoder2[0].weight.data = vwm2
-        vz2 = Variable(torch.from_numpy(np.zeros(len(self.inds2))).type(torch.FloatTensor))
+        vz2 = torch.from_numpy(np.zeros(len(self.inds2))).to(torch.float32).requires_grad_()
         self.encoder2[0].bias.data = vz2
         for p in self.encoder1[0].parameters():
-            p.requires_grad = False
+            p.requires_grad_(False)
         for p in self.encoder2[0].parameters():
-            p.requires_grad = False
-        self.decoder[-1].weight.data = Variable(torch.from_numpy(self.uwm).type(torch.FloatTensor))
-        self.decoder[-1].bias.data = Variable(torch.from_numpy(np.zeros(self.n_features)).type(torch.FloatTensor))
+            p.requires_grad_(False)
+        self.decoder[-1].weight.data = torch.from_numpy(self.uwm).to(torch.float32).requires_grad_()
+        self.decoder[-1].bias.data = torch.from_numpy(np.zeros(self.n_features)).to(torch.float32).requires_grad_()
         for p in self.decoder[-1].parameters():
-            p.requires_grad = False
+            p.requires_grad_(False)
         
         if old_net:
             n_old = len(old_net.encoder1)
@@ -106,11 +106,11 @@ class split_ae(nn.Module):
                 self.encoder1[i].weight.data = old_net.encoder1[i].weight.data
                 self.encoder1[i].bias.data = old_net.encoder1[i].bias.data
                 for p in self.encoder1[i].parameters():
-                    p.requires_grad = False
+                    p.requires_grad_(False)
                 self.encoder2[i].weight.data = old_net.encoder2[i].weight.data
                 self.encoder2[i].bias.data = old_net.encoder2[i].bias.data
                 for p in self.encoder2[i].parameters():
-                    p.requires_grad = False
+                    p.requires_grad_(False)
 
     def unfreeze_weights(self):
         """Makes all encoders weights trainable.
@@ -274,12 +274,12 @@ class ae(nn.Module):
             learned in this previous networks encoder will be frozen in the
             new network.
         """
-        self.encoder[0].weight.data = Variable(torch.from_numpy(self.wm).type(torch.FloatTensor))
-        self.encoder[0].bias.data = Variable(torch.from_numpy(np.zeros(len(self.wm))).type(torch.FloatTensor))
+        self.encoder[0].weight.data = Variable(torch.from_numpy(self.wm).to(torch.float32))
+        self.encoder[0].bias.data = Variable(torch.from_numpy(np.zeros(len(self.wm))).to(torch.float32))
         for p in self.encoder[0].parameters():
             p.requires_grad = False
-        self.decoder[-1].weight.data = Variable(torch.from_numpy(self.uwm).type(torch.FloatTensor))
-        self.decoder[-1].bias.data = Variable(torch.from_numpy(np.zeros(len(self.uwm))).type(torch.FloatTensor))
+        self.decoder[-1].weight.data = Variable(torch.from_numpy(self.uwm).to(torch.float32))
+        self.decoder[-1].bias.data = Variable(torch.from_numpy(np.zeros(len(self.uwm))).to(torch.float32))
         for p in self.decoder[-1].parameters():
             p.requires_grad = False
 
