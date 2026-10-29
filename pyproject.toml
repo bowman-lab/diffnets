@@ -12,7 +12,8 @@ name = "diffnets"
 version = "0.1.0"
 description = "Supervised and self-supervised autoencoders to identify the mechanistic basis for biochemical differences between protein variants."
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "LGPL-3.0-or-later"
+license-files = [ "LICENSE" ] 
 requires-python = ">=3.11"
 authors = [
     { name = "M. D. Ward" },
@@ -53,3 +54,7 @@ docs = [
     "sphinxcontrib-websupport>=1.1.2",
     "numpydoc>=0.9.1"
 ]
+
+
+[tool.setuptools.packages.find]
+include = ["diffnets*"]
