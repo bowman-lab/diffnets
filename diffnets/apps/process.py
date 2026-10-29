@@ -17,10 +17,10 @@ def process(argv):
 
     # Required arguments
     parser.add_argument(
-        '--sim-dirs', nargs='+', required=True, 
+        '--sim-dirs', required=True, 
         help='Path to an np.array containing directory names for each simulation set.')
     parser.add_argument(
-        '--pdb-fns', nargs='+', required=True, 
+        '--pdb-fns', required=True,
         help='Path to an np.array containing pdb file names for each simulation set. The order should match the order of sim_dirs.')
     parser.add_argument(
         '--out-dir', required=True, 
@@ -77,6 +77,8 @@ def process(argv):
             stride = np.load(args.stride)
         except:
             raise ImproperlyConfigured(f'Incorrect input for stride. Use --help flag for information on the correct input for stride.')
+    else:
+        stride=None
 
     if len(sim_dirs) != len(pdb_fns):
         raise ImproperlyConfigured(
