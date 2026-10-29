@@ -78,7 +78,7 @@ def process(argv):
         except:
             raise ImproperlyConfigured(f'Incorrect input for stride. Use --help flag for information on the correct input for stride.')
     else:
-        stride=None
+        stride = None
 
     if len(sim_dirs) != len(pdb_fns):
         raise ImproperlyConfigured(
