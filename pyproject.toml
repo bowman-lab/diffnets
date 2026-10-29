@@ -1,11 +1,13 @@
 [build-system]
 requires = [
-    "setuptools>=64",
+    "setuptools>=77",
+    "versioningit>=2.0",
     "wheel",
     "cython>=0.24",
-    "numpy>=2.3.0",
-    "Jinja2>=3"
+    "numpy>2.3.0",
+    "Jinja2>=3",
 ]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "diffnets"
@@ -18,7 +20,7 @@ requires-python = ">=3.11"
 authors = [
     { name = "M. D. Ward" },
     { name = "S. J. Swamidass" },
-    { name = "G. R. Bowman", email = "grbowman@seas.upenn.edu" }
+    { name = "G. R. Bowman", email = "grbowman@seas.upenn.edu" },
 ]
 classifiers = [
     "Development Status :: 1 - Alpha",
@@ -29,10 +31,10 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Topic :: Scientific/Engineering :: Chemistry",
     "Operating System :: POSIX",
-    "Operating System :: Unix"
+    "Operating System :: Unix",
 ]
 dependencies = [
-    "Cython>=0.24",
+    "cython>=0.24",
     "numpy>=2.3.0",
     "tables>=3.2",
     "matplotlib>=1.5.1",
@@ -41,20 +43,34 @@ dependencies = [
     "pandas",
     "scikit-learn>=0.23.2",
     "scipy>=0.17",
-    "pyyaml"
+    "pyyaml",
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest"
-]
+dev = ["pytest"]
 docs = [
     "Sphinx>=2.3.0",
     "sphinx-rtd-theme>=0.4.3",
     "sphinxcontrib-websupport>=1.1.2",
-    "numpydoc>=0.9.1"
+    "numpydoc>=0.9.1",
 ]
 
 
 [tool.setuptools.packages.find]
 include = ["diffnets*"]
+
+[tool.versioningit.next-version]
+method = "smallest"
+
+[tool.versioningit.format]
+distance = "{next_version}.dev{distance}+{vcs}{rev}"
+dirty = "{base_version}+d{build_date:%Y%m%d}"
+distance-dirty = "{next_version}.dev{distance}+{vcs}{rev}.d{build_date:%Y%m%d}"
+
+[tool.versioningit.vcs]
+method = "git"
+match = ["*"]
+default-tag = "1.0.0"
+
+[tool.versioningit.write]
+file = "diffnets/_version.py"
