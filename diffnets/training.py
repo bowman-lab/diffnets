@@ -171,7 +171,7 @@ class Trainer:
         res = pool.map(self.apply_exmax, inputs)
         pool.close()
 
-        train_inds = np.concatenate(np.array(train_inds))
+        train_inds = np.concatenate(train_inds)
         new_labels = -1 * np.ones((indicators.shape[0], 1))
         new_labels[train_inds] = np.concatenate(res)
         return new_labels
@@ -191,6 +191,7 @@ class Trainer:
         Updated labels -- length == batch size
         """
         cur_labels, indicators, em_bounds = inputs
+        cur_labels = np.asarray(cur_labels).reshape(-1)
         n_vars = em_bounds.shape[0]
 
         for i in range(n_vars):
